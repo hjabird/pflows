@@ -27,8 +27,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */////////////////////////////////////////////////////////////////////////////
 
-#include <boost/math/special_functions/hankel.hpp>
-#include <boost/math/special_functions/bessel.hpp>
 #include <cmath>
 
 #include "../../HBTK/HBTK/GaussLegendre.h"
@@ -36,40 +34,8 @@ SOFTWARE.
 #include "../../HBTK/HBTK/Remaps.h"
 #include "../../HBTK/HBTK/Constants.h"
 
-std::complex<double> Guermond1991::Hankle2_0(double k_l)
-{
-	return boost::math::cyl_hankel_2(0, k_l);
-}
+#include "Common.h"
 
-std::complex<double> Guermond1991::Hankle2_1(double k_l)
-{
-	return boost::math::cyl_hankel_2(1, k_l);
-}
-
-std::complex<double> Guermond1991::Bessel_0(double k_l)
-{
-	return boost::math::cyl_bessel_j(k_l, 0);
-}
-
-std::complex<double> Guermond1991::Bessel_1(double k_l)
-{
-	return boost::math::cyl_bessel_j(k_l, 1);
-}
-
-
-std::complex<double> Guermond1991::Theodorsen_function(double k_l)
-{
-	return (Hankle2_1(k_l)) / (Hankle2_1(k_l) + Constants::i() * Hankle2_0(k_l));
-}
-
-std::complex<double> Guermond1991::Sears_function(double k_l)
-{
-	std::complex<double> term_11, term_12, term_2;
-	term_11 = Theodorsen_function(k_l);
-	term_12 = Bessel_0(k_l) + Constants::i() * Bessel_1(k_l);
-	term_2 = Constants::i() * Bessel_1(k_l);
-	return term_11 * term_12 + term_2;
-}
 
 double Guermond1991::k_l_function(double k, double c)
 {
@@ -82,7 +48,7 @@ std::complex<double> Guermond1991::L0_function(std::function<std::complex<double
 	std::complex<double> term_11, term_12;
 	std::complex<double> term_21, term_22;	
 	
-	term_11 = -4.0 * Theodorsen_function(k_l);
+	term_11 = -4.0 * Common::Theodorsen_function(k_l);
 
 	const int n_p = 10;
 	std::array<double, n_p> points, weights;
@@ -112,7 +78,7 @@ std::complex<double> Guermond1991::M0_function(std::function<std::complex<double
 {
 	std::complex<double> term_11, term_12, term_21, term_22, term_31, term_32;
 
-	term_11 = -(c_t - c_l) * Theodorsen_function(k_l);
+	term_11 = -(c_t - c_l) * Common::Theodorsen_function(k_l);
 
 	auto M0_i1 = [&](double xi) {
 		return M0_integrand_1(f, c_l, c_t, xi);
@@ -153,7 +119,7 @@ std::complex<double> Guermond1991::l_1s_function(double w_1s, double c, double k
 
 	term_11 = 2 * Constants::pi() * c;
 	term_12 = exp(-i * k_l * (1 - 2 * K));
-	term_13 = Sears_function(k_l);
+	term_13 = Common::Sears_function(k_l);
 	term_14 = w_1s;
 	return term_11 * term_12 * term_13 * term_14;
 }
@@ -164,7 +130,7 @@ std::complex<double> Guermond1991::m_1s_function(double w_1s, double c, double k
 	
 	term_11 = Constants::pi() *(c*c) / 2.0;
 	term_12 = exp(-Constants::i() * k_l * (1 - 2 * K));
-	term_13 = Sears_function(k_l);
+	term_13 = Common::Sears_function(k_l);
 	term_14 = w_1s;
 	return term_11 * term_12 * term_13 * term_14;
 }
@@ -178,12 +144,12 @@ std::complex<double> Guermond1991::l_1r_function(double c, double k_l, double K,
 
 	term_1 = 2.0 * Constants::pi() * c;
 
-	term_211 = exp(-Constants::i() * k_l * (1 - 2 * K)) * Sears_function(k_l);
+	term_211 = exp(-Constants::i() * k_l * (1 - 2 * K)) * Common::Sears_function(k_l);
 	term_212 = log(c) - log(k_l) - log(2.0) - Constants::euler() - 0.5 * Constants::i() * Constants::pi();
 	term_213 = curly_A_function(G, dGdy, sin_lifting_line_angle, r_curv);
 	term_21 = term_211 * term_212 * term_213;
 
-	term_221 = (Theodorsen_function(k_l) - 1.0) / (Constants::i() * k_l) + 1. - 2 * K;
+	term_221 = (Common::Theodorsen_function(k_l) - 1.0) / (Constants::i() * k_l) + 1. - 2 * K;
 	term_222 = curly_A_function(l0, dl0dy, sin_lifting_line_angle, r_curv);
 	term_22 = term_221 * term_222;
 
@@ -207,12 +173,12 @@ std::complex<double> Guermond1991::m_1r_function(double c, double k_l, double K,
 
 	term_1 = 0.5 * Constants::pi() * c * c;
 
-	term_211 = exp(-Constants::i() * k_l * (1 - 2 * K)) * Sears_function(k_l);
+	term_211 = exp(-Constants::i() * k_l * (1 - 2 * K)) * Common::Sears_function(k_l);
 	term_212 = log(c) - log(k_l) - log(2.0) - Constants::euler() - 0.5 * Constants::i() * Constants::pi();
 	term_213 = curly_A_function(G, dGdy, sin_lifting_line_angle, r_curv);
 	term_21 = term_211 * term_212 * term_213;
 
-	term_221 = 0.5 * (Theodorsen_function(k_l) - 1.0) / (Constants::i() * k_l) + pow(1. - 2 * K, 2) - 0.5;
+	term_221 = 0.5 * (Common::Theodorsen_function(k_l) - 1.0) / (Constants::i() * k_l) + pow(1. - 2 * K, 2) - 0.5;
 	term_222 = curly_A_function(l0, dl0dy, sin_lifting_line_angle, r_curv);
 	term_22 = term_221 * term_222;
 

@@ -145,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Common.h" />
     <ClInclude Include="WingProjectionGeometry.h" />
     <ClInclude Include="Guermond1991.h" />
     <ClInclude Include="stdafx.h" />
@@ -152,6 +153,7 @@
     <ClInclude Include="ThinFoil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Common.cpp" />
     <ClCompile Include="WingProjectionGeometry.cpp" />
     <ClCompile Include="Guermond1991.cpp" />
     <ClCompile Include="stdafx.cpp">

@@ -49,15 +49,6 @@ namespace Guermond1991{
 	// l0_doubleprime - second momoent of 2D accl pot.
 	// r_curv - the radius of curvature of the lifting line at y
 
-	// Special functions wrapper for external libraries.
-	std::complex<double> Hankle2_0(double); // H^{(2)}_{0}
-	std::complex<double> Hankle2_1(double); // H^{(2)}_{1}
-	std::complex<double> Bessel_0(double); // J_0
-	std::complex<double> Bessel_1(double); // J_1
-
-	std::complex<double> Theodorsen_function(double k_l); // C(k_1) - Eq66
-	std::complex<double> Sears_function(double k_l); // S(k_1) - Eq72
-
 	double k_l_function(double k, double c); // Defd between Eq65-Eq66
 
 	// 2D (Section 6.1)
