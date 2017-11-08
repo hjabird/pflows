@@ -1,8 +1,10 @@
-#pragma once
+#include "stdafx.h"
+#include "Sclavounos1987.h"
 /*////////////////////////////////////////////////////////////////////////////
-Common.h
+Guermond1991.cpp
 
-Equations that are common to multiple papers.
+Equations from the paper "An unsteady lifting-line theory", P.D. Sclavounos,
+1987, Journal of Engineering Mathmatics
 
 Copyright 2017 HJA Bird
 
@@ -20,18 +22,13 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
-#include <complex>
-
 namespace mFlow {
-	namespace Common {
+	Sclavounos1987::Sclavounos1987()
+	{
+	}
 
-		std::complex<double> Hankle2_0(double); // H^{(2)}_{0}
-		std::complex<double> Hankle2_1(double); // H^{(2)}_{1}
-		std::complex<double> Bessel_0(double); // J_0
-		std::complex<double> Bessel_1(double); // J_1
 
-		std::complex<double> Theodorsen_function(double k_l); // C(k_1) 
-		std::complex<double> Sears_function(double k_l); // S(k_1)
-
+	Sclavounos1987::~Sclavounos1987()
+	{
 	}
 }
