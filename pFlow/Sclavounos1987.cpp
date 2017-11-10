@@ -94,7 +94,7 @@ namespace mFlow {
 	{
 		// Checks.
 		assert(U > 0);
-		assert(omega > 0);
+		assert(omega >= 0);
 		assert(j == 3 || j == 5);
 		assert(number_of_terms > 0);
 
@@ -130,15 +130,23 @@ namespace mFlow {
 			return numerator / denominator;
 		};
 
+		// Lets make a quadrature since we have singular endpoints on our integrand, precluding adaptives.
+		const int quad_points = 80;
+		std::array<double, quad_points> points, weights;
+		Quad::gauss_legendre(points, weights);
+		for (int idx = 0; idx < quad_points; idx++) {
+			Quad::linear_remap(points[idx], weights[idx], -1., 1., -wing.wing_span / 2, wing.wing_span / 2);
+		}
+
 		// Compute integ_diff_matrix;
 		for (int i = 0; i < number_of_terms; i++) {
 			auto ext_coeff = d_3(wing.wing_span*cos(m_collocation_points[i])) 
 				/ (2 * Constants::pi() * omega * Constants::i());
 			for (int j = 0; j < number_of_terms; j++) {
 				// Compute integal.
-				integ_diff_matrix(i,j) = ext_coeff * Quad::adaptive_simpsons_integrate(
+				integ_diff_matrix(i, j) = ext_coeff * Quad::static_integrate(
 					[&](double eta)->std::complex<double> {return sin_deriv_functor(eta, j) * K(wing.wing_span*cos(m_collocation_points[i]) - eta); },
-					1e-8, -wing.wing_span / 2, wing.wing_span / 2); // Tol, lower lim, upper lim.
+					points, weights, quad_points);
 			}
 		}
 
