@@ -178,7 +178,7 @@ namespace mFlow {
 		std::complex<double> sum(0, 0);
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
-			theta = acos(y / wing.wing_span);
+			theta = acos(2 * y / wing.wing_span);
 			sum += sin((2 * idx + 1) * theta) * m_solution(idx);
 		}
 
