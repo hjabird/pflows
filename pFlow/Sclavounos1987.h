@@ -38,15 +38,15 @@ namespace mFlow {
 		double U; // Free stream velocity.
 		double omega; // Perturbation frequency.
 		int j; // Analysis type. 3 or 5.
-		WingProjectionGeometry wing; // Geometry definition (really only chord is used.)
+		WingProjectionGeometry wing; // Geometry definition
 
 		int number_of_terms; // Number of terms in fourier sine series.
 		void compute_solution(); // Compute solution.
 		std::complex<double> get_solution_vorticity(double y); // Once a solution has been computed values can be retrieved.
+		std::complex<double> get_solution_vorticity_deriv(double y); // Rate of change of vorticity wrt/ y.
+		std::complex<double> compute_lift_coeff(double heave_added_mass); // Solution must be computed first.
 
-		// Helper
-		std::complex<double> P(double y); // Eq3.21
-		double Ei(double y); // Used in Eq3.20, https://en.wikipedia.org/wiki/Exponential_integral
+
 
 
 	protected:
@@ -62,6 +62,13 @@ namespace mFlow {
 		std::complex<double> d_3(double y); // Eq4.3
 		std::complex<double> d_5(double y); // Eq4.8
 		std::complex<double> K(double y); // Eq3.20
+		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
+		// Helper
+		std::complex<double> P(double y); // Eq3.21
+		// Replaced by boost::expint
+		// double E_1(double y); // Used in Eq3.20, https://en.wikipedia.org/wiki/Exponential_integral
+		double dtheta_dy(double y, int N); // derivative of theta with respect to y.
+		double dfsintheta_dy(double y, int N); // derivative of sin((2k + 1)theta) wrt/ y.
 	};
 }

@@ -23,6 +23,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <boost/math/special_functions/hankel.hpp>
 #include <boost/math/special_functions/bessel.hpp>
+#include <boost/math/special_functions/expint.hpp>
 #include "../../HBTK/HBTK/Constants.h"
 
 namespace mFlow {
@@ -48,18 +49,22 @@ namespace mFlow {
 			return boost::math::cyl_bessel_j(k_l, 1);
 		}
 
+		double Exponential_int_Ei(double t) {
+			return boost::math::expint(t);
+		}
+
 
 		std::complex<double> Common::Theodorsen_function(double k_l)
 		{
-			return (Hankle2_1(k_l)) / (Hankle2_1(k_l) + Constants::i() * Hankle2_0(k_l));
+			return (k_l != 0 ? (Hankle2_1(k_l)) / (Hankle2_1(k_l) + HBTK::Constants::i() * Hankle2_0(k_l)) : 1.);
 		}
 
 		std::complex<double> Common::Sears_function(double k_l)
 		{
 			std::complex<double> term_11, term_12, term_2;
 			term_11 = Theodorsen_function(k_l);
-			term_12 = Bessel_0(k_l) + Constants::i() * Bessel_1(k_l);
-			term_2 = Constants::i() * Bessel_1(k_l);
+			term_12 = Bessel_0(k_l) + HBTK::Constants::i() * Bessel_1(k_l);
+			term_2 = HBTK::Constants::i() * Bessel_1(k_l);
 			return term_11 * term_12 + term_2;
 		}
 	}

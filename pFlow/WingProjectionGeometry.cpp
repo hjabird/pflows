@@ -32,10 +32,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 WingProjectionGeometry::WingProjectionGeometry()
 {
-	// THe values are public accessible, so we can't check they've been initialised.
-	// Hence, make them invalid.
-	standard_chord = NAN;
-	wing_span = NAN;
+	invalidate_calculations();
 }
 
 
@@ -58,11 +55,19 @@ double WingProjectionGeometry::trailing_edge_X(const double & Y_coord)
 	return m_TE_expr(Y_coord);
 }
 
-double WingProjectionGeometry::chord_length(const double & Y_Global)
+double WingProjectionGeometry::chord(const double & Y_Global)
 {
 	assert(m_LE_expr);
 	assert(m_TE_expr);
-	return trailing_edge_X(Y_Global) - leading_edge_X(Y_Global);
+	double TE_x = trailing_edge_X(Y_Global);
+	double LE_x = leading_edge_X(Y_Global);
+	assert(TE_x >= LE_x);
+	return TE_x - LE_x;
+}
+
+double WingProjectionGeometry::semichord(const double & Y_Global)
+{
+	return chord(Y_Global) / 2;
 }
 
 double WingProjectionGeometry::midchord_X(const double & Y_Global)
@@ -75,21 +80,56 @@ double WingProjectionGeometry::midchord_X(const double & Y_Global)
 double WingProjectionGeometry::cos_angle_between_midchord_and_edge(double Y_global)
 {
 	std::function<double(double)> fn = [&](double y){return midchord_X(y); };
-	double dydx = Diff::central_difference_O1A2(fn, Y_global);
+	double dydx = HBTK::central_difference_O1A2(fn, Y_global);
 	return cos(atan(dydx));
 }
 
 double WingProjectionGeometry::radius_of_midchord(double Y_global)
 {
 	std::function<double(double)> fn = [&](double y) {return midchord_X(y); };
-	double dx_term = Diff::central_difference_O1A2(fn, Y_global);
-	double ddx_term = Diff::central_difference_O2A2(fn, Y_global);
+	double dx_term = HBTK::central_difference_O1A2(fn, Y_global);
+	double ddx_term = HBTK::central_difference_O2A2(fn, Y_global);
 
 	return abs(pow(sqrt(1 + dx_term), 3) / ddx_term);
 }
 
+const double WingProjectionGeometry::semispan()
+{
+	return span / 2;
+}
+
+double WingProjectionGeometry::standard_chord()
+{
+	if (!m_valid_standard_chord) { 
+		calculate_standard_chord();
+		m_valid_standard_chord = true;
+	}
+	return m_standard_chord;
+}
+
+double WingProjectionGeometry::area()
+{
+	if (!m_valid_area) {
+		calculate_wing_area();
+		m_valid_area = true;
+	}
+	return m_area;
+}
+
+
+void WingProjectionGeometry::invalidate_calculations()
+{
+	m_valid_area = false;
+	m_valid_standard_chord = false;
+}
 
 void WingProjectionGeometry::calculate_standard_chord()
+{
+	m_standard_chord = area() / span;
+	return;
+}
+
+void WingProjectionGeometry::calculate_wing_area()
 {
 	assert(m_LE_expr);
 	assert(m_TE_expr);
@@ -97,6 +137,6 @@ void WingProjectionGeometry::calculate_standard_chord()
 		auto c = leading_edge_X(y_loc) - trailing_edge_X(y_loc);
 		return c / 2;
 	};
-	standard_chord = Quad::adaptive_simpsons_integrate(my_function, 1e-10, -1.0, 1.0);
+	m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
 	return;
 }

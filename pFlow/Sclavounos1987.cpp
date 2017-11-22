@@ -47,9 +47,9 @@ namespace mFlow {
 	{
 		// See just after Eq7.1
 		m_collocation_points.resize(number_of_terms);
-		const double qpi = Constants::pi() / 4;
+		const double qpi = HBTK::Constants::pi() / (2 * number_of_terms);
 		for (int idx = 0; idx < number_of_terms; idx++) {
-			m_collocation_points[idx] = qpi + idx * Constants::pi();
+			m_collocation_points[idx] = qpi + idx * HBTK::Constants::pi() / number_of_terms;
 		}
 		return;
 	}
@@ -58,37 +58,78 @@ namespace mFlow {
 	{
 		double l; // semichord
 		double v; // Normalised frequency
-		std::complex<double> numerator, denominator;
 
-		l = wing.chord_length(y);
+		l = wing.semichord(y);
 		v = omega / U;
 
-		numerator = 4 * U * exp(-Constants::i() * l * v);
-		denominator = Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
+		if (omega == 0) { return -2 * HBTK::Constants::pi() * l; }
+
+		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v); // Should this .real on exponent!
+		auto denominator = HBTK::Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
 		return numerator / denominator;
 	}
 
 	std::complex<double> Sclavounos1987::d_5(double y)
 	{
-		return -0.5 * wing.chord_length(y) * d_3(y);
+		return -0.5 * wing.semichord(y) * d_3(y);
 	}
 
 	std::complex<double> Sclavounos1987::K(double y)
 	{
+		assert(y != 0);
+		if (omega == 0) { return 1 / (2 * y); } // Eq 5.4
+
 		std::complex<double> term_11, term_12, 
 			term_121, term_122, term_123;
-		double v;
-		v = omega / U;
+		auto v = omega / U;
 
 		term_11 = 0.5 * (y >= 0 ? 1. : -1.);
 
 		term_121 = exp(-v * abs(y)) / abs(y);
-		term_122 = Constants::i() * v * Ei(v * abs(y));
+		term_122 = HBTK::Constants::i() * v * Common::Exponential_int_Ei(v * abs(y));
 		term_123 = v * P(v * abs(y));
 		term_12 = term_121 - term_122 + term_123;
 		
 		return term_11 * term_12;
 	}
+
+	std::complex<double> Sclavounos1987::F(double y)
+	{
+		const int n_pts = 20;
+		std::array<double, n_pts> points, weights;
+		HBTK::gauss_legendre(points, weights);
+		for (auto i = 0; i < n_pts; i++) {
+			HBTK::linear_remap(points[i], weights[i], -1., 1., -wing.semispan(), wing.semispan());
+		}
+
+		auto F_res = -1. * HBTK::static_integrate( 
+			[&](double eta){
+			return get_solution_vorticity_deriv(eta) * K(y - eta); },	
+			points, weights, n_pts) / (wing.span * 2 * HBTK::Constants::pi() * HBTK::Constants::i() * omega);
+
+		return F_res;
+	}
+
+	double Sclavounos1987::dtheta_dy(double y, int N)
+	{
+		assert(N >= 0);
+		assert( y <= abs(wing.semispan()) );
+
+		return -1. / sqrt( pow(wing.semispan(), 2) - pow(y, 2) );
+	}
+
+	double Sclavounos1987::dfsintheta_dy(double y, int N)
+	{
+		assert(y <= abs(wing.semispan()));
+
+		auto theta = acos(y / wing.semispan());
+		auto dtdy = dtheta_dy(y, N);
+		auto dGammadt = (2 * N + 1) * cos((2 * N + 1) * theta);
+
+		return dGammadt * dtdy;
+	}
+
+
 
 	void Sclavounos1987::compute_solution()
 	{
@@ -117,53 +158,58 @@ namespace mFlow {
 		// Compute gamma_matrix;
 		for (int i = 0; i < number_of_terms; i++) {
 			for (int j = 0; j < number_of_terms; j++) {
-				gamma_matrix(i, j) = sin((2 * j) * m_collocation_points[i]);
+				gamma_matrix(i, j) = sin((2 * j + 1) * m_collocation_points[i]);
 			}
 		}
-
-		// The derivative of a fourier term with respect to y (ie: df/dtheta * dtheta/dy.
-		auto sin_deriv_functor = [&](double y, int N)->double {
-			// HJAB: see rough notes 09/11/17
-			double theta = acos(2* y / wing.wing_span);
-			double numerator = -(2 * N + 1)*cos((2 * N + 1)*theta);
-			double denominator = sqrt(pow(wing.wing_span / 2, 2) - pow(y, 2));
-			return numerator / denominator;
-		};
 
 		// Lets make a quadrature since we have singular endpoints on our integrand, precluding adaptives.
 		const int quad_points = 80;
 		std::array<double, quad_points> points, weights;
-		Quad::gauss_legendre(points, weights);
+		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < quad_points; idx++) {
-			Quad::linear_remap(points[idx], weights[idx], -1., 1., -wing.wing_span / 2, wing.wing_span / 2);
+			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
 		}
 
 		// Compute integ_diff_matrix;
+		auto one_over_integration_interval = 1 / wing.span;
 		for (int i = 0; i < number_of_terms; i++) {
-			auto ext_coeff = d_3(wing.wing_span*cos(m_collocation_points[i])) 
-				/ (2 * Constants::pi() * omega * Constants::i());
-			for (int j = 0; j < number_of_terms; j++) {
-				// Compute integal.
-				integ_diff_matrix(i, j) = ext_coeff * Quad::static_integrate(
-					[&](double eta)->std::complex<double> {return sin_deriv_functor(eta, j) * K(wing.wing_span*cos(m_collocation_points[i]) - eta); },
-					points, weights, quad_points);
-			}
-		}
 
-		// Get the LHS matrix:
+			auto theta = m_collocation_points[i];
+			auto y_position = wing.semispan()*cos(theta);
+			std::complex<double> ext_coeff;
+			if (omega != 0) { 
+				ext_coeff = one_over_integration_interval * d_3(y_position)
+					/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
+			}
+			else {
+				ext_coeff = wing.semichord(y_position);
+			}
+
+			for (int j = 0; j < number_of_terms; j++) 
+			{
+				auto integral = HBTK::static_integrate(
+					[&](double eta)->std::complex<double> {
+						return dfsintheta_dy(y_position, j) * K(y_position - eta); 
+					} , // End lambda
+					points, weights, quad_points);
+
+				integ_diff_matrix(i, j) = ext_coeff * integral;
+			} // End For in j
+		} // End for in i
+
 		LHS_matrix = gamma_matrix - integ_diff_matrix;
 		
 		// Generate RHS vector:
 		if (j == 3) {
 			for (int i = 0; i < number_of_terms; i++) {
-				double y = wing.wing_span * cos(m_collocation_points[i]);
+				auto y = wing.semispan()*cos(m_collocation_points[i]);
 				RHS_vector[i] = d_3(y);
 			}
 		}
 		else if (j == 5) {
 			for (int i = 0; i < number_of_terms; i++) {
-				double y = wing.wing_span * cos(m_collocation_points[i]);
-				RHS_vector[i] = d_5(y) - U * d_3(y) / (Constants::i() * omega);
+				auto y = wing.semispan()*cos(m_collocation_points[i]);
+				RHS_vector[i] = d_5(y) - U * d_3(y) / (HBTK::Constants::i() * omega);
 			}
 		}
 
@@ -175,20 +221,66 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::get_solution_vorticity(double y)
 	{
 		assert(m_solution.size() == number_of_terms);
+		assert(y <= abs(wing.semispan()) );
+
 		std::complex<double> sum(0, 0);
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
-			theta = acos(2 * y / wing.wing_span);
+			theta = acos(y / wing.semispan());
 			sum += sin((2 * idx + 1) * theta) * m_solution(idx);
 		}
 
 		return sum;
 	}
 
+	std::complex<double> Sclavounos1987::get_solution_vorticity_deriv(double y)
+	{
+		assert(m_solution.size() == number_of_terms);
+		assert(y <= abs(wing.semispan()));
+
+		std::complex<double> sum(0, 0);
+		double theta;
+		for (int idx = 0; idx < number_of_terms; idx++) {
+			theta = acos( y / wing.semispan());
+			sum += dfsintheta_dy(y, idx) * m_solution(idx);
+		}
+		return sum;
+	}
+
+	std::complex<double> Sclavounos1987::compute_lift_coeff(double heave_added_mass)
+	{
+		std::complex<double> term_1, term_2,
+			term_11, term_12, term_21, term_22;
+
+		auto integrand = [&](double y) -> std::complex<double> {
+			auto semichord = wing.semichord(y);
+			auto F_3 = F(y);
+			auto C = Common::Theodorsen_function((omega / U) * semichord);
+			return C * semichord * F_3;
+		};
+
+		auto wing_area = wing.area();
+
+		term_11 = -4. / wing_area;
+		const int n_pts = 80;
+		std::array<double, n_pts> points, weights;
+		HBTK::gauss_legendre(points, weights);
+		for (int idx = 0; idx < n_pts; idx++) {
+			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
+		}
+		term_12 = HBTK::adaptive_simpsons_integrate(integrand, 1e-7, -wing.semispan(), wing.semispan());
+		term_1 = term_11 * term_12;
+
+		term_21 = HBTK::Constants::i() * (omega / U);
+		term_22 = heave_added_mass / wing_area;
+		term_2 = term_21 * term_22;
+
+		return -term_1 - term_2;
+	}
+
 	std::complex<double> Sclavounos1987::P(double y)
 	{
 		double term_1, term_2;
-		const int n_points = 10;
 
 		auto integrand_1 = [y](const double t) -> double{
 			return exp(-y*t) * (sqrt(t*t - 1) - t) / t;
@@ -197,39 +289,40 @@ namespace mFlow {
 			return exp(-y*t) * (sqrt(1 - t*t) - 1) / t;
 		};
 		
-		const int n_pts = 10;
-		std::array<double, n_pts> points1, weights1, points2, weights2;
-		Quad::gauss_legendre(points1, weights1);
+		const int n_points = 15;
+		std::array<double, n_points> points1, weights1, points2, weights2;
+		HBTK::gauss_legendre(points1, weights1);
 		points2 = points1;
 		weights2 = weights1;
-		for (int idx = 0; idx < n_pts; idx++) {
-			Quad::exponential_remap(points1[idx], weights1[idx], 1.);
-			Quad::linear_remap(points2[idx], weights2[idx], -1., 1., 0., 1.);
+		for (int idx = 0; idx < n_points; idx++) {
+			HBTK::exponential_remap(points1[idx], weights1[idx], 1.);
+			HBTK::linear_remap(points2[idx], weights2[idx], -1., 1., 0., 1.);
 		}
-		// INT term 1 between 1, infty
-		term_1 = Quad::static_integrate(integrand_1, points1, weights1, n_points);
-		// INT term 2 between 0, 1
-		term_2 = Quad::static_integrate(integrand_2, points2, weights2, n_points);
 
-		return term_1 + Constants::i() * term_2;
+		term_1 = HBTK::static_integrate(integrand_1, points1, weights1, n_points);
+		term_2 = HBTK::static_integrate(integrand_2, points2, weights2, n_points);
+
+		return term_1 + HBTK::Constants::i() * term_2;
 	}
 
-	double Sclavounos1987::Ei(double y)
+	/*
+	double Sclavounos1987::E_1(double t)
 	{
-		double integral;
+		assert(t != 0);
+
 		auto integrand = [](double t) -> double {
 			return exp(-t) / t;
 		};
 		
-		const int n_pts = 10;
+		const int n_pts = 15;
 		std::array<double, n_pts> points, weights;
-		Quad::gauss_legendre(points, weights);
+		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < n_pts; idx++) {
-			Quad::exponential_remap(points[idx], weights[idx], -y);
+			HBTK::exponential_remap(points[idx], weights[idx], t);
 		}
-		integral = Quad::static_integrate(integrand, points, weights, n_pts);
+		auto integral = HBTK::static_integrate(integrand, points, weights, n_pts);
 
-		return -1 * integral;
+		return integral;
 	}
-
+	*/
 }
