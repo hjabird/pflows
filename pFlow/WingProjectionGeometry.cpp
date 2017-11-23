@@ -29,6 +29,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "../../HBTK/HBTK/Integrators.h"
 #include "../../HBTK/HBTK/NumericalDifferentiation.h"
+#include "../../HBTK/HBTK/Checks.h"
 
 WingProjectionGeometry::WingProjectionGeometry()
 {
@@ -44,15 +45,18 @@ WingProjectionGeometry::~WingProjectionGeometry()
 double WingProjectionGeometry::leading_edge_X(const double & Y_coord)
 {
 	assert(m_LE_expr);
-	return m_LE_expr(Y_coord);
+	auto res = m_LE_expr(Y_coord);
+	assert(HBTK::check_valid(res));
+	return res;
 }
 
 
 double WingProjectionGeometry::trailing_edge_X(const double & Y_coord)
 {
-
 	assert(m_TE_expr);
-	return m_TE_expr(Y_coord);
+	auto res = m_TE_expr(Y_coord);
+	assert(HBTK::check_valid(res));
+	return res;
 }
 
 double WingProjectionGeometry::chord(const double & Y_Global)
@@ -81,6 +85,7 @@ double WingProjectionGeometry::cos_angle_between_midchord_and_edge(double Y_glob
 {
 	std::function<double(double)> fn = [&](double y){return midchord_X(y); };
 	double dydx = HBTK::central_difference_O1A2(fn, Y_global);
+	assert(HBTK::check_valid(dydx));
 	return cos(atan(dydx));
 }
 
@@ -138,5 +143,6 @@ void WingProjectionGeometry::calculate_wing_area()
 		return c / 2;
 	};
 	m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
+	assert(HBTK::check_valid(m_area));
 	return;
 }

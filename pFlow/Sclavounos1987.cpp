@@ -28,6 +28,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include "../../HBTK/HBTK/GaussLegendre.h"
 #include "../../HBTK/HBTK/Remaps.h"
 #include "../../HBTK/HBTK/Integrators.h"
+#include "../../HBTK/HBTK/Checks.h"
 
 #include <Eigen/LU>
 
@@ -50,12 +51,14 @@ namespace mFlow {
 		const double qpi = HBTK::Constants::pi() / (2 * number_of_terms);
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			m_collocation_points[idx] = qpi + idx * HBTK::Constants::pi() / number_of_terms;
+			assert(m_collocation_points[idx] <= HBTK::Constants::pi() && m_collocation_points[idx] >= 0.);
 		}
 		return;
 	}
 
 	std::complex<double> Sclavounos1987::d_3(double y)
 	{
+		assert(y <= abs(wing.semispan()));
 		double l; // semichord
 		double v; // Normalised frequency
 
@@ -64,8 +67,10 @@ namespace mFlow {
 
 		if (omega == 0) { return -2 * HBTK::Constants::pi() * l; }
 
-		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v); // Should this .real on exponent!
+		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v).real(); 
 		auto denominator = HBTK::Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
+		assert(HBTK::check_valid(numerator));
+		assert(HBTK::check_valid(denominator));
 		return numerator / denominator;
 	}
 
@@ -77,6 +82,7 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::K(double y)
 	{
 		assert(y != 0);
+
 		if (omega == 0) { return 1 / (2 * y); } // Eq 5.4
 
 		std::complex<double> term_11, term_12, 
@@ -90,11 +96,15 @@ namespace mFlow {
 		term_123 = v * P(v * abs(y));
 		term_12 = term_121 - term_122 + term_123;
 		
+		assert(HBTK::check_valid(term_11));
+		assert(HBTK::check_valid(term_12));
 		return term_11 * term_12;
 	}
 
 	std::complex<double> Sclavounos1987::F(double y)
 	{
+		assert(y <= abs(wing.semispan()));
+
 		const int n_pts = 20;
 		std::array<double, n_pts> points, weights;
 		HBTK::gauss_legendre(points, weights);
@@ -107,28 +117,31 @@ namespace mFlow {
 			return get_solution_vorticity_deriv(eta) * K(y - eta); },	
 			points, weights, n_pts) / (wing.span * 2 * HBTK::Constants::pi() * HBTK::Constants::i() * omega);
 
+		assert(HBTK::check_valid(F_res));
 		return F_res;
 	}
+
 
 	double Sclavounos1987::dtheta_dy(double y, int N)
 	{
 		assert(N >= 0);
 		assert( y <= abs(wing.semispan()) );
-
-		return -1. / sqrt( pow(wing.semispan(), 2) - pow(y, 2) );
+		auto result = -1. / sqrt(pow(wing.semispan(), 2) - pow(y, 2));
+		assert(HBTK::check_valid(result));
+		return result;
 	}
+
 
 	double Sclavounos1987::dfsintheta_dy(double y, int N)
 	{
 		assert(y <= abs(wing.semispan()));
-
+		
 		auto theta = acos(y / wing.semispan());
 		auto dtdy = dtheta_dy(y, N);
 		auto dGammadt = (2 * N + 1) * cos((2 * N + 1) * theta);
 
 		return dGammadt * dtdy;
 	}
-
 
 
 	void Sclavounos1987::compute_solution()
@@ -227,9 +240,11 @@ namespace mFlow {
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			theta = acos(y / wing.semispan());
+			assert(HBTK::check_valid(m_solution(idx)));
 			sum += sin((2 * idx + 1) * theta) * m_solution(idx);
 		}
 
+		assert(HBTK::check_valid(sum));
 		return sum;
 	}
 
@@ -242,8 +257,11 @@ namespace mFlow {
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			theta = acos( y / wing.semispan());
+			assert(HBTK::check_valid(m_solution(idx)));
 			sum += dfsintheta_dy(y, idx) * m_solution(idx);
 		}
+
+		assert(HBTK::check_valid(sum));
 		return sum;
 	}
 
@@ -268,13 +286,15 @@ namespace mFlow {
 		for (int idx = 0; idx < n_pts; idx++) {
 			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
 		}
-		term_12 = HBTK::adaptive_simpsons_integrate(integrand, 1e-7, -wing.semispan(), wing.semispan());
+		term_12 = HBTK::static_integrate(integrand, points, weights, n_pts);
 		term_1 = term_11 * term_12;
 
 		term_21 = HBTK::Constants::i() * (omega / U);
 		term_22 = heave_added_mass / wing_area;
 		term_2 = term_21 * term_22;
 
+		assert(HBTK::check_valid(term_1));
+		assert(HBTK::check_valid(term_2));
 		return -term_1 - term_2;
 	}
 
@@ -289,7 +309,7 @@ namespace mFlow {
 			return exp(-y*t) * (sqrt(1 - t*t) - 1) / t;
 		};
 		
-		const int n_points = 15;
+		const int n_points = 20;
 		std::array<double, n_points> points1, weights1, points2, weights2;
 		HBTK::gauss_legendre(points1, weights1);
 		points2 = points1;
@@ -301,6 +321,8 @@ namespace mFlow {
 
 		term_1 = HBTK::static_integrate(integrand_1, points1, weights1, n_points);
 		term_2 = HBTK::static_integrate(integrand_2, points2, weights2, n_points);
+		assert(HBTK::check_valid(term_1));
+		assert(HBTK::check_valid(term_2));
 
 		return term_1 + HBTK::Constants::i() * term_2;
 	}
