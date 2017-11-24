@@ -46,7 +46,7 @@ double WingProjectionGeometry::leading_edge_X(const double & Y_coord)
 {
 	assert(m_LE_expr);
 	auto res = m_LE_expr(Y_coord);
-	assert(HBTK::check_valid(res));
+	assert(HBTK::check_finite(res));
 	return res;
 }
 
@@ -55,7 +55,7 @@ double WingProjectionGeometry::trailing_edge_X(const double & Y_coord)
 {
 	assert(m_TE_expr);
 	auto res = m_TE_expr(Y_coord);
-	assert(HBTK::check_valid(res));
+	assert(HBTK::check_finite(res));
 	return res;
 }
 
@@ -85,7 +85,7 @@ double WingProjectionGeometry::cos_angle_between_midchord_and_edge(double Y_glob
 {
 	std::function<double(double)> fn = [&](double y){return midchord_X(y); };
 	double dydx = HBTK::central_difference_O1A2(fn, Y_global);
-	assert(HBTK::check_valid(dydx));
+	assert(HBTK::check_finite(dydx));
 	return cos(atan(dydx));
 }
 
@@ -143,6 +143,6 @@ void WingProjectionGeometry::calculate_wing_area()
 		return c / 2;
 	};
 	m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
-	assert(HBTK::check_valid(m_area));
+	assert(HBTK::check_finite(m_area));
 	return;
 }

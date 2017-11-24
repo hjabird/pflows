@@ -51,7 +51,6 @@ namespace mFlow {
 
 	protected:
 
-		Eigen::VectorXd m_fourier_coefficients;
 		Eigen::VectorXd m_collocation_points;
 		Eigen::Matrix<std::complex<double>, -1, 1> m_solution;
 

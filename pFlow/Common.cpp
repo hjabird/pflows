@@ -32,43 +32,43 @@ namespace mFlow {
 
 		std::complex<double> Common::Hankle2_0(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(0, k_l);
 		}
 
 		std::complex<double> Common::Hankle2_1(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(1, k_l);
 		}
 
 		std::complex<double> Common::Bessel_0(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 0);
 		}
 
 		std::complex<double> Common::Bessel_1(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 1);
 		}
 
 		double Exponential_int_Ei(double t) {
-			assert(HBTK::check_valid(t));
+			assert(HBTK::check_finite(t));
 			return boost::math::expint(t);
 		}
 
 
 		std::complex<double> Common::Theodorsen_function(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			return (k_l != 0 ? (Hankle2_1(k_l)) / (Hankle2_1(k_l) + HBTK::Constants::i() * Hankle2_0(k_l)) : 1.);
 		}
 
 		std::complex<double> Common::Sears_function(double k_l)
 		{
-			assert(HBTK::check_valid(k_l));
+			assert(HBTK::check_finite(k_l));
 			std::complex<double> term_11, term_12, term_2;
 			term_11 = Theodorsen_function(k_l);
 			term_12 = Bessel_0(k_l) + HBTK::Constants::i() * Bessel_1(k_l);

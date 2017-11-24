@@ -46,11 +46,11 @@ namespace mFlow {
 
 	void Sclavounos1987::compute_collocation_points()
 	{
-		// See just after Eq7.1
+		// After Eq 7.1 states these as local maxima of sin((N+1)theta). This doesn't work...
 		m_collocation_points.resize(number_of_terms);
-		const double qpi = HBTK::Constants::pi() / (2 * number_of_terms);
+		const double hpi = HBTK::Constants::pi() / 2;
 		for (int idx = 0; idx < number_of_terms; idx++) {
-			m_collocation_points[idx] = qpi + idx * HBTK::Constants::pi() / number_of_terms;
+			m_collocation_points[idx] = (hpi + idx * HBTK::Constants::pi()) / (2 * number_of_terms);
 			assert(m_collocation_points[idx] <= HBTK::Constants::pi() && m_collocation_points[idx] >= 0.);
 		}
 		return;
@@ -69,8 +69,8 @@ namespace mFlow {
 
 		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v).real(); 
 		auto denominator = HBTK::Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
-		assert(HBTK::check_valid(numerator));
-		assert(HBTK::check_valid(denominator));
+		assert(HBTK::check_finite(numerator));
+		assert(HBTK::check_finite(denominator));
 		return numerator / denominator;
 	}
 
@@ -81,9 +81,9 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::K(double y)
 	{
-		assert(y != 0);
+		assert(y != 0.);
 
-		if (omega == 0) { return 1 / (2 * y); } // Eq 5.4
+		if (omega == 0.) { return 1. / (2. * y); } // Eq 5.4
 
 		std::complex<double> term_11, term_12, 
 			term_121, term_122, term_123;
@@ -96,8 +96,8 @@ namespace mFlow {
 		term_123 = v * P(v * abs(y));
 		term_12 = term_121 - term_122 + term_123;
 		
-		assert(HBTK::check_valid(term_11));
-		assert(HBTK::check_valid(term_12));
+		assert(HBTK::check_finite(term_11));
+		assert(HBTK::check_finite(term_12));
 		return term_11 * term_12;
 	}
 
@@ -117,7 +117,7 @@ namespace mFlow {
 			return get_solution_vorticity_deriv(eta) * K(y - eta); },	
 			points, weights, n_pts) / (wing.span * 2 * HBTK::Constants::pi() * HBTK::Constants::i() * omega);
 
-		assert(HBTK::check_valid(F_res));
+		assert(HBTK::check_finite(F_res));
 		return F_res;
 	}
 
@@ -127,7 +127,7 @@ namespace mFlow {
 		assert(N >= 0);
 		assert( y <= abs(wing.semispan()) );
 		auto result = -1. / sqrt(pow(wing.semispan(), 2) - pow(y, 2));
-		assert(HBTK::check_valid(result));
+		assert(HBTK::check_finite(result));
 		return result;
 	}
 
@@ -159,7 +159,7 @@ namespace mFlow {
 		Eigen::MatrixXd gamma_matrix; // The matrix that directly gives vorticities at given points.
 		// The matrix that representsthe integro-differential part.
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> integ_diff_matrix;
-		// LHS matrix - the one we use for the solution (Yah, unneeded extra copies. I don't care).
+		// For the probem in for Ax = b, solve for x, this is A.
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> LHS_matrix;
 		// RHS vector
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, 1> RHS_vector;
@@ -180,6 +180,7 @@ namespace mFlow {
 		std::array<double, quad_points> points, weights;
 		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < quad_points; idx++) {
+			//HBTK::telles_cubic_remap(points[idx], weights[idx], 0.);
 			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
 		}
 
@@ -227,6 +228,7 @@ namespace mFlow {
 		}
 
 		// YAY. We now have everything we need to compute our solution.
+		assert(abs(LHS_matrix.determinant()) >= 1e-5);
 		m_solution = LHS_matrix.lu().solve(RHS_vector);
 		return;
 	}
@@ -240,11 +242,11 @@ namespace mFlow {
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			theta = acos(y / wing.semispan());
-			assert(HBTK::check_valid(m_solution(idx)));
+			assert(HBTK::check_finite(m_solution(idx)));
 			sum += sin((2 * idx + 1) * theta) * m_solution(idx);
 		}
 
-		assert(HBTK::check_valid(sum));
+		assert(HBTK::check_finite(sum));
 		return sum;
 	}
 
@@ -257,11 +259,11 @@ namespace mFlow {
 		double theta;
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			theta = acos( y / wing.semispan());
-			assert(HBTK::check_valid(m_solution(idx)));
+			assert(HBTK::check_finite(m_solution(idx)));
 			sum += dfsintheta_dy(y, idx) * m_solution(idx);
 		}
 
-		assert(HBTK::check_valid(sum));
+		assert(HBTK::check_finite(sum));
 		return sum;
 	}
 
@@ -293,8 +295,8 @@ namespace mFlow {
 		term_22 = heave_added_mass / wing_area;
 		term_2 = term_21 * term_22;
 
-		assert(HBTK::check_valid(term_1));
-		assert(HBTK::check_valid(term_2));
+		assert(HBTK::check_finite(term_1));
+		assert(HBTK::check_finite(term_2));
 		return -term_1 - term_2;
 	}
 
@@ -321,8 +323,8 @@ namespace mFlow {
 
 		term_1 = HBTK::static_integrate(integrand_1, points1, weights1, n_points);
 		term_2 = HBTK::static_integrate(integrand_2, points2, weights2, n_points);
-		assert(HBTK::check_valid(term_1));
-		assert(HBTK::check_valid(term_2));
+		assert(HBTK::check_finite(term_1));
+		assert(HBTK::check_finite(term_2));
 
 		return term_1 + HBTK::Constants::i() * term_2;
 	}
