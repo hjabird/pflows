@@ -47,6 +47,7 @@ namespace mFlow {
 		std::complex<double> compute_lift_coeff(double heave_added_mass); // Solution must be computed first.
 
 
+		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
 
 	protected:
@@ -61,7 +62,6 @@ namespace mFlow {
 		std::complex<double> d_3(double y); // Eq4.3
 		std::complex<double> d_5(double y); // Eq4.8
 		std::complex<double> K(double y); // Eq3.20
-		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
 		// Helper
 		std::complex<double> P(double y); // Eq3.21
