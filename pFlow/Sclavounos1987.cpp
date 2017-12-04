@@ -23,12 +23,16 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
 #include <array>
+#include <algorithm>
+#include <numeric>
 
 #include "../../HBTK/HBTK/Constants.h"
 #include "../../HBTK/HBTK/GaussLegendre.h"
 #include "../../HBTK/HBTK/Remaps.h"
 #include "../../HBTK/HBTK/Integrators.h"
 #include "../../HBTK/HBTK/Checks.h"
+#include "../../HBTK/HBTK/Generators.h"
+#include "../../HBTK/HBTK/GnuPlot.h"
 
 #include <Eigen/LU>
 
@@ -51,6 +55,8 @@ namespace mFlow {
 		const double hpi = HBTK::Constants::pi() / 2;
 		for (int idx = 0; idx < number_of_terms; idx++) {
 			m_collocation_points[idx] = (hpi + idx * HBTK::Constants::pi()) / (2 * number_of_terms);
+			//m_collocation_points[idx] = hpi / (idx + 1);
+			//m_collocation_points[idx] = hpi / (2*idx + 1);
 			assert(m_collocation_points[idx] <= HBTK::Constants::pi() && m_collocation_points[idx] >= 0.);
 		}
 		return;
@@ -83,22 +89,101 @@ namespace mFlow {
 	{
 		assert(y != 0.);
 
-		if (omega == 0.) { return 1. / (2. * y); } // Eq 5.4
+		if (omega == 0.) { return K_singular(y); } // Eq 5.4
+		else { return K_singular(y) + K_well_behaved(y); } // Full K.
+	}
 
-		std::complex<double> term_11, term_12, 
-			term_121, term_122, term_123;
-		auto v = omega / U;
 
-		term_11 = 0.5 * (y >= 0 ? 1. : -1.);
+	double Sclavounos1987::K_singular(double y)
+	{
+		assert(y != 0);
+		return K_singular_numerator(y) * K_singular_pure(y);
+	}
 
-		term_121 = exp(-v * abs(y)) / abs(y);
-		term_122 = HBTK::Constants::i() * v * Common::Exponential_int_Ei(v * abs(y));
-		term_123 = v * P(v * abs(y));
-		term_12 = term_121 - term_122 + term_123;
+	double Sclavounos1987::K_singular_pure(double y)
+	{
+		assert(y != 0);
+		return 1 / y;
+	}
+
+	double Sclavounos1987::K_singular_pure_integral(double singularity_pos)
+	{
+		return log2(singularity_pos + wing.semispan()) 
+			- log2(wing.semispan() - singularity_pos);
+	}
+
+	double Sclavounos1987::K_singular_numerator(double y)
+	{
+		return 0.5 * exp(- (omega / U) * abs(y));
+	}
+
+	std::complex<double> Sclavounos1987::K_well_behaved(double y)
+	{
+		if (omega == 0) { return 0; }
+
+		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
+		auto nu = omega / U;
+		auto P_term = nu * P(nu * abs(y));
+		auto E_1_term = -HBTK::Constants::i() * nu * Common::Exponential_int_Ei(nu * abs(y));
 		
-		assert(HBTK::check_finite(term_11));
-		assert(HBTK::check_finite(term_12));
-		return term_11 * term_12;
+		assert(HBTK::check_finite(P_term));
+		assert(HBTK::check_finite(E_1_term));
+		return coeff * (P_term - E_1_term);
+	}
+
+
+	std::complex<double> Sclavounos1987::integrate_gammaprime_K(double y_position, int k)
+	{
+		assert(abs(y_position) <= wing.semispan());
+		assert(k >= 0);
+
+		// Lets make a quadrature since we have singular endpoints on our integrand, precluding adaptives.
+		const int num_quad_pts = 40;
+		std::array<double, num_quad_pts> points, weights;
+		HBTK::gauss_legendre(points, weights);
+		for (int idx = 0; idx < (int)points.size(); idx++) {
+			// Modify our quadrature for the weak end singularities and span.
+			//HBTK::telles_quadratic_remap(points[idx], weights[idx], -1.);
+			//HBTK::telles_quadratic_remap(points[idx], weights[idx], 1.);
+			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
+		}
+
+		// CPV part: We're using the singularity subtraction method here.
+		auto ssm_static_var = dfsintheta_dy(y_position, k) * K_singular_numerator(y_position - y_position);
+
+		auto numerical_integrand = [&](double eta) {
+			auto singularity = K_singular_pure(y_position - eta);
+			auto fourier_diff = dfsintheta_dy(eta, k);
+			auto singular_numerator = K_singular_numerator(y_position - eta);
+			assert((omega == 0 ? singular_numerator == 0.5 : true));
+			auto ssm_result =  K_singular_pure(y_position - eta) * 
+				(fourier_diff * singular_numerator - ssm_static_var);
+			assert(HBTK::check_finite(ssm_result));
+
+			auto non_singular = K_well_behaved(y_position - eta);
+			auto reg_result = non_singular * fourier_diff;
+			assert(HBTK::check_finite(reg_result));
+			assert((omega == 0 ? abs(reg_result) == 0 : true));
+
+			return ssm_result + reg_result;
+		};
+		
+		auto integral = HBTK::static_integrate(numerical_integrand,	points, weights, num_quad_pts);
+		integral += K_singular_pure_integral(y_position) * ssm_static_var;
+
+		std::vector<double> Y, X, sin_part;
+		X.assign(points.begin(), points.end());
+		std::transform(X.begin(), X.end(), std::back_inserter(sin_part), [&](double x) { return dfsintheta_dy(x, k); });
+		Y.resize(points.size());
+		for (int idx = 0; idx < (int)X.size(); idx++) {
+			Y[idx] = numerical_integrand(points[idx]).real() * weights[idx];
+		}
+		HBTK::GnuPlot plt;
+		plt.plot(X, Y);
+		plt.hold_on();
+		//plt.plot(X, sin_part);
+
+		return integral;
 	}
 
 	std::complex<double> Sclavounos1987::F(double y)
@@ -122,23 +207,23 @@ namespace mFlow {
 	}
 
 
-	double Sclavounos1987::dtheta_dy(double y, int N)
+	double Sclavounos1987::dtheta_dy(double y)
 	{
-		assert(N >= 0);
-		assert( y <= abs(wing.semispan()) );
+		assert( abs(y) <= wing.semispan() );
 		auto result = -1. / sqrt(pow(wing.semispan(), 2) - pow(y, 2));
 		assert(HBTK::check_finite(result));
 		return result;
 	}
 
 
-	double Sclavounos1987::dfsintheta_dy(double y, int N)
+	double Sclavounos1987::dfsintheta_dy(double y, int k)
 	{
 		assert(y <= abs(wing.semispan()));
+		assert(k >= 0);
 		
 		auto theta = acos(y / wing.semispan());
-		auto dtdy = dtheta_dy(y, N);
-		auto dGammadt = (2 * N + 1) * cos((2 * N + 1) * theta);
+		auto dtdy = dtheta_dy(y);
+		auto dGammadt = (2 * k + 1) * cos((2 * k + 1) * theta);
 
 		return dGammadt * dtdy;
 	}
@@ -175,38 +260,22 @@ namespace mFlow {
 			}
 		}
 
-		// Lets make a quadrature since we have singular endpoints on our integrand, precluding adaptives.
-		const int quad_points = 80;
-		std::array<double, quad_points> points, weights;
-		HBTK::gauss_legendre(points, weights);
-		for (int idx = 0; idx < quad_points; idx++) {
-			//HBTK::telles_cubic_remap(points[idx], weights[idx], 0.);
-			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
-		}
-
 		// Compute integ_diff_matrix;
 		auto one_over_integration_interval = 1 / wing.span;
 		for (int i = 0; i < number_of_terms; i++) {
 
-			auto theta = m_collocation_points[i];
-			auto y_position = wing.semispan()*cos(theta);
+			auto y_position = wing.semispan()*cos(m_collocation_points[i]);
 			std::complex<double> ext_coeff;
 			if (omega != 0) { 
 				ext_coeff = one_over_integration_interval * d_3(y_position)
 					/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
-			}
-			else {
+			} else {
 				ext_coeff = wing.semichord(y_position);
 			}
 
 			for (int j = 0; j < number_of_terms; j++) 
 			{
-				auto integral = HBTK::static_integrate(
-					[&](double eta)->std::complex<double> {
-						return dfsintheta_dy(y_position, j) * K(y_position - eta); 
-					} , // End lambda
-					points, weights, quad_points);
-
+				auto integral = integrate_gammaprime_K(y_position, j);
 				integ_diff_matrix(i, j) = ext_coeff * integral;
 			} // End For in j
 		} // End for in i
@@ -323,30 +392,10 @@ namespace mFlow {
 
 		term_1 = HBTK::static_integrate(integrand_1, points1, weights1, n_points);
 		term_2 = HBTK::static_integrate(integrand_2, points2, weights2, n_points);
+
 		assert(HBTK::check_finite(term_1));
 		assert(HBTK::check_finite(term_2));
-
 		return term_1 + HBTK::Constants::i() * term_2;
 	}
 
-	/*
-	double Sclavounos1987::E_1(double t)
-	{
-		assert(t != 0);
-
-		auto integrand = [](double t) -> double {
-			return exp(-t) / t;
-		};
-		
-		const int n_pts = 15;
-		std::array<double, n_pts> points, weights;
-		HBTK::gauss_legendre(points, weights);
-		for (int idx = 0; idx < n_pts; idx++) {
-			HBTK::exponential_remap(points[idx], weights[idx], t);
-		}
-		auto integral = HBTK::static_integrate(integrand, points, weights, n_pts);
-
-		return integral;
-	}
-	*/
 }

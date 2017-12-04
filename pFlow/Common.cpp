@@ -56,6 +56,7 @@ namespace mFlow {
 
 		double Exponential_int_Ei(double t) {
 			assert(HBTK::check_finite(t));
+			assert(t != 0);
 			return boost::math::expint(t);
 		}
 

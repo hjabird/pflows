@@ -49,10 +49,10 @@ namespace mFlow {
 
 		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
+		Eigen::VectorXd m_collocation_points;
 
 	protected:
 
-		Eigen::VectorXd m_collocation_points;
 		Eigen::Matrix<std::complex<double>, -1, 1> m_solution;
 
 		// Setup
@@ -61,13 +61,19 @@ namespace mFlow {
 		// See paper for function definitions. Maths.
 		std::complex<double> d_3(double y); // Eq4.3
 		std::complex<double> d_5(double y); // Eq4.8
+		std::complex<double> P(double y); // Eq3.21
+
 		std::complex<double> K(double y); // Eq3.20
+		double K_singular(double y); // Singular part of K including numerator term
+		double K_singular_pure(double y); // Just the 1 / (sing_pos - x) term
+		double K_singular_pure_integral(double singularity_pos); // The integral of the singular bit over the span.
+		double K_singular_numerator(double y); // The part of the singular term that is nice.
+		std::complex<double> K_well_behaved(double y); // The E_1 and P parts of K
+
+		std::complex<double> integrate_gammaprime_K(double y, int k);
 
 		// Helper
-		std::complex<double> P(double y); // Eq3.21
-		// Replaced by boost::expint
-		// double E_1(double y); // Used in Eq3.20, https://en.wikipedia.org/wiki/Exponential_integral
-		double dtheta_dy(double y, int N); // derivative of theta with respect to y.
-		double dfsintheta_dy(double y, int N); // derivative of sin((2k + 1)theta) wrt/ y.
+		double dtheta_dy(double y); // derivative of theta with respect to y.
+		double dfsintheta_dy(double y, int k); // derivative of sin((2k + 1)theta) wrt/ y.
 	};
 }
