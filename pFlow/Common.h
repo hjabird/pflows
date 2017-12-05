@@ -31,6 +31,7 @@ namespace mFlow {
 		std::complex<double> Bessel_1(double); // J_1
 
 		double Exponential_int_Ei(double t); // Ei(x)
+		double Exponential_int_E1(double t); // E_1(x)
 
 		std::complex<double> Theodorsen_function(double k_l); // C(k_1) 
 		std::complex<double> Sears_function(double k_l); // S(k_1)

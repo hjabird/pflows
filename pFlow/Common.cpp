@@ -60,6 +60,10 @@ namespace mFlow {
 			return boost::math::expint(t);
 		}
 
+		double Exponential_int_E1(double t) {
+			assert(HBTK::check_finite(t));
+			return boost::math::expint(1, t);
+		}
 
 		std::complex<double> Common::Theodorsen_function(double k_l)
 		{

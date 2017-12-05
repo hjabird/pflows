@@ -23,6 +23,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <functional>
 #include <complex>
+#include <vector>
 
 #include <Eigen/Dense>
 
@@ -49,7 +50,7 @@ namespace mFlow {
 
 		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
-		Eigen::VectorXd m_collocation_points;
+		std::vector<double> m_collocation_points;
 
 	protected:
 

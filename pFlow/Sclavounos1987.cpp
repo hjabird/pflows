@@ -73,7 +73,7 @@ namespace mFlow {
 
 		if (omega == 0) { return -2 * HBTK::Constants::pi() * l; }
 
-		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v).real(); 
+		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v); 
 		auto denominator = HBTK::Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
 		assert(HBTK::check_finite(numerator));
 		assert(HBTK::check_finite(denominator));
@@ -103,7 +103,7 @@ namespace mFlow {
 	double Sclavounos1987::K_singular_pure(double y)
 	{
 		assert(y != 0);
-		return 1 / y;
+		return 1. / y;
 	}
 
 	double Sclavounos1987::K_singular_pure_integral(double singularity_pos)
@@ -124,7 +124,7 @@ namespace mFlow {
 		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
 		auto P_term = nu * P(nu * abs(y));
-		auto E_1_term = -HBTK::Constants::i() * nu * Common::Exponential_int_Ei(nu * abs(y));
+		auto E_1_term = -HBTK::Constants::i() * nu * Common::Exponential_int_E1(nu * abs(y));
 		
 		assert(HBTK::check_finite(P_term));
 		assert(HBTK::check_finite(E_1_term));
@@ -138,13 +138,14 @@ namespace mFlow {
 		assert(k >= 0);
 
 		// Lets make a quadrature since we have singular endpoints on our integrand, precluding adaptives.
-		const int num_quad_pts = 40;
+		const int num_quad_pts = 100;// 30;
 		std::array<double, num_quad_pts> points, weights;
 		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < (int)points.size(); idx++) {
 			// Modify our quadrature for the weak end singularities and span.
-			//HBTK::telles_quadratic_remap(points[idx], weights[idx], -1.);
-			//HBTK::telles_quadratic_remap(points[idx], weights[idx], 1.);
+			HBTK::telles_quadratic_remap(points[idx], weights[idx], -1.);
+			HBTK::telles_quadratic_remap(points[idx], weights[idx], 1.);
+			// HBTK::telles_cubic_remap(points[idx], weights[idx], y_position);
 			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
 		}
 
@@ -156,8 +157,7 @@ namespace mFlow {
 			auto fourier_diff = dfsintheta_dy(eta, k);
 			auto singular_numerator = K_singular_numerator(y_position - eta);
 			assert((omega == 0 ? singular_numerator == 0.5 : true));
-			auto ssm_result =  K_singular_pure(y_position - eta) * 
-				(fourier_diff * singular_numerator - ssm_static_var);
+			auto ssm_result =  singularity * (fourier_diff * singular_numerator - ssm_static_var);
 			assert(HBTK::check_finite(ssm_result));
 
 			auto non_singular = K_well_behaved(y_position - eta);
@@ -168,20 +168,18 @@ namespace mFlow {
 			return ssm_result + reg_result;
 		};
 		
-		auto integral = HBTK::static_integrate(numerical_integrand,	points, weights, num_quad_pts);
-		integral += K_singular_pure_integral(y_position) * ssm_static_var;
+		auto integral = HBTK::static_integrate(numerical_integrand,	points, weights, num_quad_pts)
+				+ K_singular_pure_integral(y_position) * ssm_static_var;
 
-		std::vector<double> Y, X, sin_part;
-		X.assign(points.begin(), points.end());
-		std::transform(X.begin(), X.end(), std::back_inserter(sin_part), [&](double x) { return dfsintheta_dy(x, k); });
-		Y.resize(points.size());
-		for (int idx = 0; idx < (int)X.size(); idx++) {
-			Y[idx] = numerical_integrand(points[idx]).real() * weights[idx];
-		}
-		HBTK::GnuPlot plt;
-		plt.plot(X, Y);
-		plt.hold_on();
-		//plt.plot(X, sin_part);
+		// std::vector<double> Y;
+		// auto X = HBTK::linspace(-wing.semispan()+1E-9, wing.semispan()-1E-9, 500);
+		// for (auto idx = 0; idx < (int) X.size(); idx++) {
+		// 	Y.emplace_back(numerical_integrand(X[idx]).real());
+		// }
+		// HBTK::GnuPlot plt;
+		// plt.plot(X, Y, "bo-");
+		// plt.hold_on();
+		// plt.plot({ y_position }, { 0.0 }, "md");
 
 		return integral;
 	}
@@ -270,7 +268,7 @@ namespace mFlow {
 				ext_coeff = one_over_integration_interval * d_3(y_position)
 					/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
 			} else {
-				ext_coeff = wing.semichord(y_position);
+				ext_coeff = - wing.semichord(y_position);
 			}
 
 			for (int j = 0; j < number_of_terms; j++) 
