@@ -139,8 +139,8 @@ void WingProjectionGeometry::calculate_wing_area()
 	assert(m_LE_expr);
 	assert(m_TE_expr);
 	auto my_function = [&](const double y_loc) {
-		auto c = leading_edge_X(y_loc) - trailing_edge_X(y_loc);
-		return c / 2;
+		auto c = abs(trailing_edge_X(y_loc) - leading_edge_X(y_loc));
+		return c;
 	};
 	m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
 	assert(HBTK::check_finite(m_area));

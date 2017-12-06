@@ -50,7 +50,7 @@ namespace mFlow {
 
 		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
-		std::vector<double> m_collocation_points;
+		std::vector<double> m_collocation_points; // In 0 to pi (in terms of theta
 
 	protected:
 
@@ -65,16 +65,25 @@ namespace mFlow {
 		std::complex<double> P(double y); // Eq3.21
 
 		std::complex<double> K(double y); // Eq3.20
-		double K_singular(double y); // Singular part of K including numerator term
-		double K_singular_pure(double y); // Just the 1 / (sing_pos - x) term
-		double K_singular_pure_integral(double singularity_pos); // The integral of the singular bit over the span.
-		double K_singular_numerator(double y); // The part of the singular term that is nice.
-		std::complex<double> K_well_behaved(double y); // The E_1 and P parts of K
+		double K_term1(double y); // Singular part of K including numerator term
+		double K_term1_singularity(double y); // Just the 1 / (sing_pos - x) term
+		double K_term1_singularity_integral(double singularity_pos); // The integral of the singular bit over the span.
+		double K_term1_numerator(double y); // The part of the singular term that is nice.
+		std::complex<double> K_term2(double y); // The E1 part of K
+		std::complex<double> K_term3(double y); // The E_1 and P parts of K
 
 		std::complex<double> integrate_gammaprime_K(double y, int k);
+		std::complex<double> integrate_gammaprime_K_term1(double y, int k); // 1/(y-eta) term
+		std::complex<double> integrate_gammaprime_K_term2(double y, int k); // E_1 term
+		std::complex<double> integrate_gammaprime_K_term3(double y, int k); // P term
 
-		// Helper
 		double dtheta_dy(double y); // derivative of theta with respect to y.
-		double dfsintheta_dy(double y, int k); // derivative of sin((2k + 1)theta) wrt/ y.
+		double dsintheta_dy(double y, int k); // derivative of sin((2k + 1)theta) wrt/ y.
+		double dsintheta_dtheta(double theta, int k); // derivative of sin((2k+1)theta) wrt/ theta
+
+		// Get a quadrature comprised of two polynomial regions split at split theta.
+		// Quadrature is for 0 -> pi. Outputs points_lower, weights_lower, points_upper, weights_upper
+		std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
+			get_split_quad(int total_pts, double split_theta);
 	};
 }
