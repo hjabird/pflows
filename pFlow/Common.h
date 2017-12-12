@@ -25,8 +25,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 namespace mFlow {
 	namespace Common {
 
-		std::complex<double> Hankle2_0(double); // H^{(2)}_{0}
-		std::complex<double> Hankle2_1(double); // H^{(2)}_{1}
+		std::complex<double> Hankel2_0(double); // H^{(2)}_{0}
+		std::complex<double> Hankel2_1(double); // H^{(2)}_{1}
 		std::complex<double> Bessel_0(double); // J_0
 		std::complex<double> Bessel_1(double); // J_1
 

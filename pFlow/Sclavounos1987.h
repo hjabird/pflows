@@ -52,9 +52,12 @@ namespace mFlow {
 
 		std::vector<double> m_collocation_points; // In 0 to pi (in terms of theta
 
+		double get_elliptic_added_mass_coefficient(double a, double b); // Get added mass for ellipse
+
 	protected:
 
 		Eigen::Matrix<std::complex<double>, -1, 1> m_solution;
+		Eigen::Matrix<std::complex<double>, -1, -1> m_gammaprime_K_matrix;
 
 		// Setup
 		void compute_collocation_points();

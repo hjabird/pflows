@@ -73,10 +73,10 @@ namespace mFlow {
 		l = wing.semichord(y);
 		v = omega / U;
 
-		if (omega == 0) { return -2 * HBTK::Constants::pi() * l; }
+		if (omega == 0.0) { return -2 * HBTK::Constants::pi() * l; }
 
-		auto numerator = 4 * U * exp(-HBTK::Constants::i() * l * v); 
-		auto denominator = HBTK::Constants::i() * Common::Hankle2_0(v * l) + Common::Hankle2_1(v * l);
+		auto numerator = 4. * U * exp( - HBTK::Constants::i() * l * v);
+		auto denominator = HBTK::Constants::i() * Common::Hankel2_0(v * l) + Common::Hankel2_1(v * l);
 		assert(HBTK::check_finite(numerator));
 		assert(HBTK::check_finite(denominator));
 		return numerator / denominator;
@@ -133,9 +133,9 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::K_term3(double y)
 	{
-		if (omega == 0) { return 0; }
+		if (omega == 0) { return 0; } // Avoid evaluation only to multiply by zero.
 
-		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
+		auto coeff = -0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
 		auto P_term = nu * P(nu * abs(y));
 		
@@ -152,11 +152,11 @@ namespace mFlow {
 		// We're evaluating int( Gamma'(eta) * K(y-eta deta)
 		// K can be expanded into 3 terms as considered separatively as follows:
 		
-		auto integral = integrate_gammaprime_K_term1(y_position, k)
-			+ integrate_gammaprime_K_term2(y_position, k)
-			+ integrate_gammaprime_K_term3(y_position, k);
+		auto integral1 = integrate_gammaprime_K_term1(y_position, k);
+		auto integral2 = 0.0;//integrate_gammaprime_K_term2(y_position, k);
+		auto integral3 = integrate_gammaprime_K_term3(y_position, k);
 
-		return integral;
+		return integral1 + integral2 + integral3;
 	}
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term1(double y_position, int k)
@@ -164,11 +164,7 @@ namespace mFlow {
 		auto theta_sing = acos(y_position / wing.semispan());
 		
 		const int num_quad_points = 30;
-		std::array<double, num_quad_points> points, weights;
-		HBTK::gauss_legendre(points, weights);
-		for(int idx = 0; idx < num_quad_points; idx++) { 
-			HBTK::linear_remap(points[idx], weights[idx], -1., 1., 0., HBTK::Constants::pi());
-		}
+		auto quad = get_split_quad(num_quad_points, theta_sing);
 
 		// We're using the singularity subtraction method.
 		auto singularity_coefficient = dsintheta_dtheta(theta_sing, k) * K_term1_numerator(0);
@@ -183,11 +179,12 @@ namespace mFlow {
 			return singular_part * singularity_subtraction;
 		};
 
-		auto integral = HBTK::static_integrate(numerical_integrand, points, weights, num_quad_points);
-		integral += singularity_coefficient * K_term1_singularity_integral(y_position);
+		auto integral = HBTK::static_integrate(numerical_integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
+			+ HBTK::static_integrate(numerical_integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size())
+			+ singularity_coefficient * 0.; // Glauert integral
 
 		assert(HBTK::check_finite(integral));
-		return integral;
+		return -integral;
 	}
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term2(double y, int k)
@@ -202,7 +199,7 @@ namespace mFlow {
 		// subtraction method. All integrating with respect to theta.
 
 		// I = int(u dv) = uv - int(du v).
-		// dv = cos((2k+1)theta), u = - 0.5 * sgn(y-eta) * v * i * E_1(v * abs(y-eta)) 
+		// dv = (2k+1) * cos((2k+1)theta), u = - 0.5 * sgn(y-eta) * v * i * E_1(v * abs(y-eta)) 
 
 		// integral of the fourier part to v
 		auto fourier_term = [&](double theta_0) {
@@ -211,15 +208,18 @@ namespace mFlow {
 
 		// Derivative of the K terms (ie. du)
 		auto K_term2_dtheta_singular = [&](double ypos, double eta) {
-			return 1. / ((omega / U) * abs(ypos - eta));
+			return  wing.semispan() / (ypos - eta);
+		};
+		auto K_term2_dtheta_singular_integral = [&](double theta) {
+			return 0.0; // From 0 to pi this is a Glauert Integral.
 		};
 		auto K_term2_dtheta_numerator = [&](double ypos, double eta) {
-			return - HBTK::Constants::i() * (omega / U) * 0.5 * sin(acos(ypos / wing.semispan())) 
+			return HBTK::Constants::i() * (omega / U) * 0.5 * sin(acos(eta / wing.semispan())) 
 				* exp(-(omega / U) * abs(ypos - eta));
 		};
 
 		// compute uv:
-		auto uv = 0.; // Due to the fact that you evaluate sin((2k+1)theta0) at 0 and pi.
+		auto uv = HBTK::Constants::i() * (omega / U) * Common::Exponential_int_E1(0.) * sin((2 * k + 1)*theta_sing);
 		
 		// compute int u dv		
 		auto ssm_coeff = fourier_term(theta_sing) * K_term2_dtheta_numerator(y, y);
@@ -230,12 +230,16 @@ namespace mFlow {
 			return singular_bit * (nonsingular - ssm_coeff);
 		};
 		auto quad = get_split_quad(40, theta_sing);
-		auto intudv = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
-			+ HBTK::static_integrate(integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size())
-			+ 0.; // The integral of the singular bit is 0.
+		auto intudv1 = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
+		auto intudv2 = HBTK::static_integrate(integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
+		auto intudv3 = ssm_coeff * K_term2_dtheta_singular_integral(theta_sing); // The integral of the singular bit is 0.
+		auto intudv = intudv1 + intudv2 + intudv3;
+
+		// HBTK::GnuPlot plt;
+		// plt.plot([&](double x) { return integrand(x).imag(); }, 1e-5, HBTK::Constants::pi() - 1e-5);
 
 		assert(HBTK::check_finite(intudv));
-		return uv + intudv;
+		return -(uv + intudv);
 	}
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term3(double y, int k)
@@ -248,6 +252,7 @@ namespace mFlow {
 			auto eta = wing.semispan() * cos(theta0);
 			return dsintheta_dtheta(theta0, k) * K_term3(y - eta);
 		};
+
 		auto integral = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
 			+ HBTK::static_integrate(integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
 
@@ -257,13 +262,11 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::F(double y)
 	{
 		assert(y <= abs(wing.semispan()));
-
 		std::complex<double> F_res = 0.;
-
 		for (int idx = 0; idx < (int)m_solution.size(); idx++) {
 			F_res += integrate_gammaprime_K(y, idx) * m_solution[idx];
 		}
-
+		F_res = F_res * -1. / (HBTK::Constants::i() * omega * 2. * HBTK::Constants::pi());
 		assert(HBTK::check_finite(F_res));
 		return F_res;
 	}
@@ -301,8 +304,10 @@ namespace mFlow {
 	std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
 		Sclavounos1987::get_split_quad(int total_pts, double split_theta)
 	{
-		int n_pts_upper = (int)ceil(total_pts * split_theta / HBTK::Constants::pi());
-		int n_pts_lower = total_pts - n_pts_upper + 1;
+		assert(total_pts >= 2);
+
+		int n_pts_lower = (int)ceil((total_pts-2) * split_theta / HBTK::Constants::pi()) + 1;
+		int n_pts_upper = (total_pts-1) - n_pts_lower + 1;
 
 		std::vector<double> points_upper, weights_upper, points_lower, weights_lower;
 		points_upper.resize(n_pts_upper);	weights_upper.resize(n_pts_upper);
@@ -341,6 +346,7 @@ namespace mFlow {
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, 1> RHS_vector;
 		gamma_matrix.resize(number_of_terms, number_of_terms);
 		integ_diff_matrix.resize(number_of_terms, number_of_terms);
+		m_gammaprime_K_matrix = integ_diff_matrix;
 		LHS_matrix.resize(number_of_terms, number_of_terms);
 		RHS_vector.resize(number_of_terms);
 
@@ -351,15 +357,13 @@ namespace mFlow {
 			}
 		}
 
-		// Compute integ_diff_matrix;
-		auto one_over_integration_interval = 1 / wing.span;
+		// Compute integ_diff_matrix
 		for (int i = 0; i < number_of_terms; i++) {
 
-			auto y_position = wing.semispan()*cos(m_collocation_points[i]);
+			auto y_position = wing.semispan() * cos(m_collocation_points[i]);
 			std::complex<double> ext_coeff;
 			if (omega != 0) { 
-				ext_coeff = one_over_integration_interval * d_3(y_position)
-					/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
+				ext_coeff = d_3(y_position)	/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
 			} else {
 				ext_coeff = - wing.semichord(y_position);
 			}
@@ -367,6 +371,7 @@ namespace mFlow {
 			for (int j = 0; j < number_of_terms; j++) 
 			{
 				auto integral = integrate_gammaprime_K(y_position, j);
+				m_gammaprime_K_matrix(i, j) = integral;
 				integ_diff_matrix(i, j) = ext_coeff * integral;
 			} // End For in j
 		} // End for in i
@@ -387,7 +392,7 @@ namespace mFlow {
 			}
 		}
 
-		// YAY. We now have everything we need to compute our solution.
+		// We now have everything we need to compute our solution.
 		assert(abs(LHS_matrix.determinant()) >= 1e-5);
 		m_solution = LHS_matrix.lu().solve(RHS_vector);
 		return;
@@ -432,41 +437,70 @@ namespace mFlow {
 		std::complex<double> term_1, term_2,
 			term_11, term_12, term_21, term_22;
 
-		auto integrand = [&](double y) -> std::complex<double> {
+		auto integrand = [&](double theta) -> std::complex<double> {
+			auto y = wing.semispan() * cos(theta);
 			auto semichord = wing.semichord(y);
 			auto F_3 = F(y);
 			auto C = Common::Theodorsen_function((omega / U) * semichord);
-			return C * semichord *F_3;
+			return C * semichord * F_3 * sin(theta);
 		};
 
 		term_11 = -4. / wing.area();
-		const int n_pts = 80;
+		const int n_pts = 60;
 		std::array<double, n_pts> points, weights;
 		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < n_pts; idx++) {
-			HBTK::linear_remap(points[idx], weights[idx], -1., 1., -wing.semispan(), wing.semispan());
+			HBTK::linear_remap(points[idx], weights[idx], -1., 1., 0., HBTK::Constants::pi()/2);
 		}
-		term_12 = HBTK::static_integrate(integrand, points, weights, n_pts);
+		term_12 = wing.semispan() * 2.0 * HBTK::static_integrate(integrand, points, weights, n_pts);
 		term_1 = term_11 * term_12;
 
 		term_21 = HBTK::Constants::i() * (omega / U);
 		term_22 = heave_added_mass / wing.area();
 		term_2 = term_21 * term_22;
-
-		//HBTK::GnuPlot plt;
-		//plt.plot([&](double x) {return F(x).real(); }, -wing.semispan()+1E-9, wing.semispan()-1E-9, "r-");
-
+		/*
+		HBTK::GnuPlot plt, plt2;
+		plt.title("C_L integrand real");
+		plt.plot([&](double x) { return integrand(x).real(); }, 1e-3, HBTK::Constants::pi()-1e-3);
+		plt2.title("F(y) real");
+		plt2.plot([&](double x) { return F(x).real(); }, -wing.semispan()+1e-3, wing.semispan()-1e-3);
+		*/
 		assert(HBTK::check_finite(term_1));
 		assert(HBTK::check_finite(term_2));
 		return term_1 - term_2;
 	}
 
+	double get_elliptic_added_mass_coefficient(double a, double b) {
+		if (a < b) { std::swap(a, b); }
+		double added_mass = a * b * b * HBTK::Constants::pi() * 4. / 3.;
+		double ratio = a / b;
+		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 4., 6., 8.19, 10.34, 14.30, 10000. }; // To inf really.
+		std::vector<double> known_coeffs = { 0.637, 0.748, 0.826, 0.900, 0.933, 0.964, 0.978, 0.985, 0.991, 1.000 };
+
+		double coeff = 0;
+		int lower_known = -1;
+		// Linear interpolation
+		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
+			if (ratio < known_ratios[idx]) {
+				lower_known = idx;
+			}
+		}
+		if (lower_known == 0) { coeff = known_ratios[0]; } // == 1.
+		
+		double fraction = (ratio - known_ratios[lower_known]) / (known_ratios[lower_known + 1] - known_ratios[lower_known]);
+		coeff = (known_coeffs[lower_known + 1] - known_coeffs[lower_known]) * fraction + known_coeffs[lower_known];
+		added_mass *= coeff;
+		return added_mass;
+	}
+
+
 	std::complex<double> Sclavounos1987::P(double y)
 	{
 		double term_1, term_2;
 
+		// On the real term we're using integration by parts.
 		auto integrand_1 = [y](const double t) -> double{
-			return exp(-y*t) * (sqrt(t*t - 1) - t) / t;
+			return -y * exp(-y*t) * (asin(1./t) + sqrt(t*t - 1.) - t);
 		};
 		auto integrand_2 = [y](const double t) -> double{
 			return exp(-y*t) * (sqrt(1 - t*t) - 1) / t;
@@ -482,7 +516,8 @@ namespace mFlow {
 			HBTK::linear_remap(points2[idx], weights2[idx], -1., 1., 0., 1.);
 		}
 
-		term_1 = HBTK::static_integrate(integrand_1, points1, weights1, n_points);
+		term_1 = - exp(-y) * (asin(1.) - 1)
+			- HBTK::static_integrate(integrand_1, points1, weights1, n_points);
 		term_2 = HBTK::static_integrate(integrand_2, points2, weights2, n_points);
 
 		assert(HBTK::check_finite(term_1));

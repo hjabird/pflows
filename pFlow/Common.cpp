@@ -30,13 +30,13 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 namespace mFlow {
 	namespace Common {
 
-		std::complex<double> Common::Hankle2_0(double k_l)
+		std::complex<double> Common::Hankel2_0(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(0, k_l);
 		}
 
-		std::complex<double> Common::Hankle2_1(double k_l)
+		std::complex<double> Common::Hankel2_1(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(1, k_l);
@@ -68,7 +68,7 @@ namespace mFlow {
 		std::complex<double> Common::Theodorsen_function(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
-			return (k_l != 0 ? (Hankle2_1(k_l)) / (Hankle2_1(k_l) + HBTK::Constants::i() * Hankle2_0(k_l)) : 1.);
+			return (k_l != 0 ? (Hankel2_1(k_l)) / (Hankel2_1(k_l) + HBTK::Constants::i() * Hankel2_0(k_l)) : 1.);
 		}
 
 		std::complex<double> Common::Sears_function(double k_l)
