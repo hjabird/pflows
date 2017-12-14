@@ -25,16 +25,16 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 namespace mFlow {
 	namespace Common {
 
-		std::complex<double> Hankel2_0(double); // H^{(2)}_{0}
-		std::complex<double> Hankel2_1(double); // H^{(2)}_{1}
-		std::complex<double> Bessel_0(double);	// J_0
-		std::complex<double> Bessel_1(double);	// J_1
+		std::complex<double> hankel2_0(double); // H^{(2)}_{0}
+		std::complex<double> hankel2_1(double); // H^{(2)}_{1}
+		std::complex<double> bessel_0(double);	// J_0
+		std::complex<double> bessel_1(double);	// J_1
 
-		double Exponential_int_Ei(double t);	// Ei(x)
-		double Exponential_int_E1(double t);	// E_1(x)
+		double exponential_int_Ei(double t);	// Ei(x)
+		double exponential_int_E1(double t);	// E_1(x)
 
-		std::complex<double> Theodorsen_function(double k_l);	// C(k_1) 
-		std::complex<double> Sears_function(double k_l);		// S(k_1)
+		std::complex<double> theodorsen_function(double k_l);	// C(k_1) 
+		std::complex<double> sears_function(double k_l);		// S(k_1)
 
 	}
 }

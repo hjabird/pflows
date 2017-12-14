@@ -30,54 +30,54 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 namespace mFlow {
 	namespace Common {
 
-		std::complex<double> Common::Hankel2_0(double k_l)
+		std::complex<double> Common::hankel2_0(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(0, k_l);
 		}
 
-		std::complex<double> Common::Hankel2_1(double k_l)
+		std::complex<double> Common::hankel2_1(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(1, k_l);
 		}
 
-		std::complex<double> Common::Bessel_0(double k_l)
+		std::complex<double> Common::bessel_0(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 0);
 		}
 
-		std::complex<double> Common::Bessel_1(double k_l)
+		std::complex<double> Common::bessel_1(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 1);
 		}
 
-		double Exponential_int_Ei(double t) {
+		double exponential_int_Ei(double t) {
 			assert(HBTK::check_finite(t));
 			assert(t != 0);
 			return boost::math::expint(t);
 		}
 
-		double Exponential_int_E1(double t) {
+		double exponential_int_E1(double t) {
 			assert(HBTK::check_finite(t));
 			return boost::math::expint(1, t);
 		}
 
-		std::complex<double> Common::Theodorsen_function(double k_l)
+		std::complex<double> Common::theodorsen_function(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
-			return (k_l != 0 ? (Hankel2_1(k_l)) / (Hankel2_1(k_l) + HBTK::Constants::i() * Hankel2_0(k_l)) : 1.);
+			return (k_l != 0 ? (hankel2_1(k_l)) / (hankel2_1(k_l) + HBTK::Constants::i() * hankel2_0(k_l)) : 1.);
 		}
 
-		std::complex<double> Common::Sears_function(double k_l)
+		std::complex<double> Common::sears_function(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			std::complex<double> term_11, term_12, term_2;
-			term_11 = Theodorsen_function(k_l);
-			term_12 = Bessel_0(k_l) + HBTK::Constants::i() * Bessel_1(k_l);
-			term_2 = HBTK::Constants::i() * Bessel_1(k_l);
+			term_11 = theodorsen_function(k_l);
+			term_12 = bessel_0(k_l) + HBTK::Constants::i() * bessel_1(k_l);
+			term_2 = HBTK::Constants::i() * bessel_1(k_l);
 			return term_11 * term_12 + term_2;
 		}
 	}

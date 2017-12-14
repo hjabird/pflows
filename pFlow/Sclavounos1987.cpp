@@ -75,7 +75,7 @@ namespace mFlow {
 		if (omega == 0.0) { return -2 * HBTK::Constants::pi() * l; } // See Eq(5.5)
 
 		auto numerator = 4. * U * exp( - HBTK::Constants::i() * l * v);
-		auto denominator = HBTK::Constants::i() * Common::Hankel2_0(v * l) + Common::Hankel2_1(v * l);
+		auto denominator = HBTK::Constants::i() * Common::hankel2_0(v * l) + Common::hankel2_1(v * l);
 		assert(HBTK::check_finite(numerator));
 		assert(HBTK::check_finite(denominator));
 		return numerator / denominator;
@@ -84,7 +84,8 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::d_5(double y)
 	{
-		return - 0.5 * wing.semichord(y) * d_3(y); // Eq4.8. Y checked in d_3 function.
+		// Eq4.8. Input variable y is checked in d_3 function.
+		return - 0.5 * wing.semichord(y) * d_3(y); 
 	}
 
 
@@ -119,11 +120,12 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::K_term2(double y)
 	{
+		// Avoid evaluation only to multiply by zero.
 		if (omega == 0) { return 0; }
 
 		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
-		auto E_1_term = -HBTK::Constants::i() * nu * Common::Exponential_int_E1(nu * abs(y));
+		auto E_1_term = -HBTK::Constants::i() * nu * Common::exponential_int_E1(nu * abs(y));
 
 		assert(HBTK::check_finite(E_1_term));
 		return coeff * -1. * E_1_term;
@@ -132,7 +134,8 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::K_term3(double y)
 	{
-		if (omega == 0) { return 0; } // Avoid evaluation only to multiply by zero.
+		// Avoid evaluation only to multiply by zero.
+		if (omega == 0) { return 0; } 
 
 		auto coeff = -0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
@@ -184,6 +187,7 @@ namespace mFlow {
 			+ singularity_coefficient * 0.; // Glauert integral
 
 		assert(HBTK::check_finite(integral));
+		// We switched the limits to integrate 0 -> pi, so we need a negative sign here.
 		return -integral;
 	}
 
@@ -193,20 +197,26 @@ namespace mFlow {
 		assert(abs(y) <= wing.semispan());
 		assert(k >= 0);
 
+		// The singularity position in terms of the angle theta.
 		auto theta_sing = acos(y / wing.semispan());
 
 		auto integral_coefficient = HBTK::Constants::i() * omega / (2 * U);
+
+		// The non-singular part of the integrand
 		auto non_singular = [&](double theta)->double {
 			return (2 * k + 1) * cos((2 * k + 1)*theta) / (wing.semispan() * sin(theta));
 		};
+		// The singular part of the integrand
 		auto singular = [&](double theta)->std::complex<double> {
 			return wing.semispan() * sin(theta) * (theta > theta_sing ? 1. : -1.)
-				* Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing) - cos(theta)));
+				* Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing) - cos(theta)));
 		};
-		auto singular_integral = wing.semispan() * ((cos(theta_sing)+1.) * Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
-			+ (cos(theta_sing) -1.) * Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing)-1.))) 
+		// The singular part of the integrand evaluated.
+		auto singular_integral = wing.semispan() * ((cos(theta_sing)+1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
+			+ (cos(theta_sing) -1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)-1.))) 
 			+ exp(wing.semispan()*(cos(theta_sing) - 1.)) - exp(-wing.semispan()*(cos(theta_sing) + 1.));
 
+		// The singularity subtraction method is used here.
 		auto ssm_variable = non_singular(theta_sing);
 		auto numerical_integrand = [&](double theta) {
 			auto singular_var = singular(theta);
@@ -287,6 +297,7 @@ namespace mFlow {
 		auto integral = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
 			+ HBTK::static_integrate(integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
 
+		assert(HBTK::check_finite(integral));
 		return integral;
 	}
 
@@ -340,6 +351,7 @@ namespace mFlow {
 	{
 		assert(total_pts >= 2);
 
+		// Compute the number of points for each quadrature based on linear split.
 		int n_pts_lower = (int)ceil((total_pts-2) * split_theta / HBTK::Constants::pi()) + 1;
 		int n_pts_upper = (total_pts-1) - n_pts_lower + 1;
 
@@ -361,7 +373,6 @@ namespace mFlow {
 
 	void Sclavounos1987::compute_solution()
 	{
-		// Checks.
 		assert(U > 0);
 		assert(omega >= 0);
 		assert(j == 3 || j == 5);
@@ -426,9 +437,8 @@ namespace mFlow {
 			}
 		}
 
-		// We now have everything we need to compute our solution.
-		assert(abs(LHS_matrix.determinant()) >= 1e-5);
-		m_solution = LHS_matrix.lu().solve(RHS_vector);
+		assert(abs(LHS_matrix.determinant()) >= 1e-5);  
+		m_solution = LHS_matrix.lu().solve(RHS_vector); // Solve matrix problem using LU decomposition.
 		return;
 	}
 
@@ -461,7 +471,7 @@ namespace mFlow {
 			auto y = wing.semispan() * cos(theta);
 			auto semichord = wing.semichord(y);
 			auto F_3 = F(y);
-			auto C = Common::Theodorsen_function((omega / U) * semichord);
+			auto C = Common::theodorsen_function((omega / U) * semichord);
 			return C * semichord * F_3 * sin(theta);
 		};
 
@@ -478,39 +488,38 @@ namespace mFlow {
 		term_21 = HBTK::Constants::i() * (omega / U);
 		term_22 = heave_added_mass / wing.area();
 		term_2 = term_21 * term_22;
-		/*
-		HBTK::GnuPlot plt, plt2;
-		plt.title("C_L integrand real");
-		plt.plot([&](double x) { return integrand(x).real(); }, 1e-3, HBTK::Constants::pi()-1e-3);
-		plt2.title("F(y) real");
-		plt2.plot([&](double x) { return F(x).real(); }, -wing.semispan()+1e-3, wing.semispan()-1e-3);
-		*/
+
 		assert(HBTK::check_finite(term_1));
 		assert(HBTK::check_finite(term_2));
 		return term_1 - term_2;
 	}
 
 
-	double get_elliptic_added_mass_coefficient(double a, double b) {
+	double  Sclavounos1987::get_elliptic_added_mass_coefficient() {
+		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
+		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
+		// Integration of the flat plate term in eq4.4 results in the equivalent of AR=1, without the correction
+		// for the elliptic nature of the plate.
+		double a = wing.semispan();
+		double b = wing.semichord(0.);
 		if (a < b) { std::swap(a, b); }
 		double added_mass = a * b * b * HBTK::Constants::pi() * 4. / 3.;
 		double ratio = a / b;
+		// Linear interpolation of correction for ellipse from circle.
 		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 4., 6., 8.19, 10.34, 14.30, 10000. }; // To inf really.
 		std::vector<double> known_coeffs = { 0.637, 0.748, 0.826, 0.900, 0.933, 0.964, 0.978, 0.985, 0.991, 1.000 };
-
 		double coeff = 0;
 		int lower_known = -1;
-		// Linear interpolation
 		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
-			if (ratio < known_ratios[idx]) {
+			if (ratio >= known_ratios[idx]) {
 				lower_known = idx;
 			}
 		}
 		if (lower_known == 0) { coeff = known_ratios[0]; } // == 1.
-		
+
 		double fraction = (ratio - known_ratios[lower_known]) / (known_ratios[lower_known + 1] - known_ratios[lower_known]);
 		coeff = (known_coeffs[lower_known + 1] - known_coeffs[lower_known]) * fraction + known_coeffs[lower_known];
-		added_mass *= coeff;
+		added_mass *= 2 * coeff;
 		return added_mass;
 	}
 

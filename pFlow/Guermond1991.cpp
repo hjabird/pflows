@@ -44,7 +44,7 @@ namespace mFlow {
 		std::complex<double> term_11, term_12;
 		std::complex<double> term_21, term_22;
 
-		term_11 = -4.0 * Common::Theodorsen_function(k_l);
+		term_11 = -4.0 * Common::theodorsen_function(k_l);
 
 		const int n_p = 10;
 		std::array<double, n_p> points, weights;
@@ -74,7 +74,7 @@ namespace mFlow {
 	{
 		std::complex<double> term_11, term_12, term_21, term_22, term_31, term_32;
 
-		term_11 = -(c_t - c_l) * Common::Theodorsen_function(k_l);
+		term_11 = -(c_t - c_l) * Common::theodorsen_function(k_l);
 
 		auto M0_i1 = [&](double xi) {
 			return M0_integrand_1(f, c_l, c_t, xi);
@@ -115,7 +115,7 @@ namespace mFlow {
 
 		term_11 = 2 * HBTK::Constants::pi() * c;
 		term_12 = exp(-i * k_l * (1 - 2 * K));
-		term_13 = Common::Sears_function(k_l);
+		term_13 = Common::sears_function(k_l);
 		term_14 = w_1s;
 		return term_11 * term_12 * term_13 * term_14;
 	}
@@ -126,7 +126,7 @@ namespace mFlow {
 
 		term_11 = HBTK::Constants::pi() *(c*c) / 2.0;
 		term_12 = exp(-HBTK::Constants::i() * k_l * (1 - 2 * K));
-		term_13 = Common::Sears_function(k_l);
+		term_13 = Common::sears_function(k_l);
 		term_14 = w_1s;
 		return term_11 * term_12 * term_13 * term_14;
 	}
@@ -140,12 +140,12 @@ namespace mFlow {
 
 		term_1 = 2.0 * HBTK::Constants::pi() * c;
 
-		term_211 = exp(-HBTK::Constants::i() * k_l * (1 - 2 * K)) * Common::Sears_function(k_l);
+		term_211 = exp(-HBTK::Constants::i() * k_l * (1 - 2 * K)) * Common::sears_function(k_l);
 		term_212 = log(c) - log(k_l) - log(2.0) - HBTK::Constants::euler() - 0.5 * HBTK::Constants::i() * HBTK::Constants::pi();
 		term_213 = curly_A_function(G, dGdy, sin_lifting_line_angle, r_curv);
 		term_21 = term_211 * term_212 * term_213;
 
-		term_221 = (Common::Theodorsen_function(k_l) - 1.0) / (HBTK::Constants::i() * k_l) + 1. - 2 * K;
+		term_221 = (Common::theodorsen_function(k_l) - 1.0) / (HBTK::Constants::i() * k_l) + 1. - 2 * K;
 		term_222 = curly_A_function(l0, dl0dy, sin_lifting_line_angle, r_curv);
 		term_22 = term_221 * term_222;
 
@@ -169,12 +169,12 @@ namespace mFlow {
 
 		term_1 = 0.5 * HBTK::Constants::pi() * c * c;
 
-		term_211 = exp(-HBTK::Constants::i() * k_l * (1 - 2 * K)) * Common::Sears_function(k_l);
+		term_211 = exp(-HBTK::Constants::i() * k_l * (1 - 2 * K)) * Common::sears_function(k_l);
 		term_212 = log(c) - log(k_l) - log(2.0) - HBTK::Constants::euler() - 0.5 * HBTK::Constants::i() * HBTK::Constants::pi();
 		term_213 = curly_A_function(G, dGdy, sin_lifting_line_angle, r_curv);
 		term_21 = term_211 * term_212 * term_213;
 
-		term_221 = 0.5 * (Common::Theodorsen_function(k_l) - 1.0) / (HBTK::Constants::i() * k_l) + pow(1. - 2 * K, 2) - 0.5;
+		term_221 = 0.5 * (Common::theodorsen_function(k_l) - 1.0) / (HBTK::Constants::i() * k_l) + pow(1. - 2 * K, 2) - 0.5;
 		term_222 = curly_A_function(l0, dl0dy, sin_lifting_line_angle, r_curv);
 		term_22 = term_221 * term_222;
 

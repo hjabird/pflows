@@ -61,6 +61,9 @@ namespace mFlow {
 		// at any point on the lifthing line.
 		std::complex<double> F(double y);
 
+		// Returns the added mass coefficient for the wing on the assumption it is elliptic.
+		double get_elliptic_added_mass_coefficient();
+
 	protected:
 
 		// The coefficients A_{2k+1} computed using eq5.2.
