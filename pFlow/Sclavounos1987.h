@@ -36,49 +36,69 @@ namespace mFlow {
 		Sclavounos1987();
 		~Sclavounos1987();
 
-		WingProjectionGeometry wing; // Geometry definition
-		double U; // Free stream velocity.
-		double omega; // Perturbation frequency.
-		int j; // Analysis type. 3 or 5.
-		std::vector<double> m_collocation_points; // In 0 to pi (in terms of theta)
-		int number_of_terms; // Number of terms in fourier sine series.
+		// Geometry definition
+		WingProjectionGeometry wing;
 
-		void compute_solution(); // Compute solution.
-		std::complex<double> compute_lift_coeff(double heave_added_mass); // Solution must be computed first.
-		std::complex<double> get_solution_vorticity(double y); // Once a solution has been computed values can be retrieved.
-		std::complex<double> F(double y); // Eq5.2 - needs solution first.
+		// Parameters for simulation
+		double U;		// Free stream velocity.
+		double omega;	// Perturbation frequency.
+		int j;			// Analysis type. 3 or 5, corresponding to heave and pitch respectively.
+		std::vector<double> m_collocation_points;	// In 0 to pi (in terms of theta)
+		int number_of_terms;	// Number of sin((2k+1)theta) terms used to approximate the vorticity distribution.
 
+		// Assuming that valid input parameters have been set, compute the solution, leaving results in m_solution.
+		void compute_solution();
 
-		//double get_elliptic_added_mass_coefficient(double a, double b); // Get added mass for ellipse
+		// Once the solution has been computed, the lift coefficient may be computed. The heave added mass
+		// coefficient, given as a_{33} for heave added mass must be given. NB: a_{33} = 2m_{33} / \rho
+		std::complex<double> compute_lift_coeff(double heave_added_mass);
+
+		// Once a solution has been computed, the complex vorticity at any point on the lifting line can be 
+		// evaluated.
+		std::complex<double> get_solution_vorticity(double y);
+
+		// Once a solution has been computed, the interaction term, F (see eq5.2) can be evaluated
+		// at any point on the lifthing line.
+		std::complex<double> F(double y);
 
 	protected:
 
+		// The coefficients A_{2k+1} computed using eq5.2.
 		Eigen::Matrix<std::complex<double>, -1, 1> m_solution;
+		// The matrix integrate(Gamma'(eta) * K(y-eta) deta) was expensive to evaluate and 
+		// so is cached.
 		Eigen::Matrix<std::complex<double>, -1, -1> m_gammaprime_K_matrix;
 
 		// Setup
 		void compute_collocation_points();
 
-		// See paper for function definitions. Maths.
-		std::complex<double> d_3(double y); // Eq4.3
-		std::complex<double> d_5(double y); // Eq4.8
-		std::complex<double> P(double y); // Eq3.21
+		// Unsteady vortex coefficients:
+		std::complex<double> d_3(double y); // Eq4.3 - heave
+		std::complex<double> d_5(double y); // Eq4.8 - pitch
 
-		std::complex<double> K(double y); // Eq3.20
-		double K_term1(double y); // Singular part of K including numerator term
-		double K_term1_singularity(double y); // Just the 1 / (sing_pos - x) term
-		double K_term1_numerator(double y); // The part of the singular term that is nice.
+		// The Kernal described in eq3.20 in terms of K(y) = ...
+		std::complex<double> K(double y);		// Eq3.20
+		double K_term1(double y);				// Singular part of K including numerator term
+		double K_term1_singularity(double y);	// Just the 1 / (sing_pos - x) term
+		double K_term1_numerator(double y);		// The part of the singular term that is nice.
 		std::complex<double> K_term2(double y); // The E1 part of K
 		std::complex<double> K_term3(double y); // The E_1 and P parts of K
 
+		// A function used in K(y) (eq3.20).
+		std::complex<double> P(double y);		// Eq3.21
+
+		// Integrate Int(Gamma'(eta) * K(y - eta) dy) from eq5.2, eq5.3.
+		// y is the y position, k part of a frequency term - Gamma = Sum(A_{2k+1} sin((2k+1)theta))
 		std::complex<double> integrate_gammaprime_K(double y, int k);
 		std::complex<double> integrate_gammaprime_K_term1(double y, int k); // 1/(y-eta) term
 		std::complex<double> integrate_gammaprime_K_term2(double y, int k); // E_1 term
 		std::complex<double> integrate_gammaprime_K_term3(double y, int k); // P term
 
-		double dtheta_dy(double y); // derivative of theta with respect to y.
-		double dsintheta_dy(double y, int k); // derivative of sin((2k + 1)theta) wrt/ y.
-		double dsintheta_dtheta(double theta, int k); // derivative of sin((2k+1)theta) wrt/ theta
+		// Derivatives of the Gamma term.
+		double dtheta_dy(double y);						// derivative of theta with respect to y.
+		double dsintheta_dy(double y, int k);			// derivative of sin((2k + 1)theta) wrt/ y.
+		double dsintheta_dtheta(double theta, int k);	// derivative of sin((2k+1)theta) wrt/ theta
+
 
 		// Get a quadrature comprised of two polynomial regions split at split theta.
 		// Quadrature is for 0 -> pi. Outputs points_lower, weights_lower, points_upper, weights_upper
