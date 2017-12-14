@@ -126,7 +126,8 @@ namespace mFlow {
 
 		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
-		auto E_1_term = -HBTK::Constants::i() * nu * Common::exponential_int_E1(nu * abs(y));
+		auto E_1_term = -HBTK::Constants::i() * nu 
+			* Common::exponential_int_E1(nu * abs(y));
 
 		assert(HBTK::check_finite(E_1_term));
 		return coeff * -1. * E_1_term;
@@ -179,12 +180,15 @@ namespace mFlow {
 			auto nonsingular_K = K_term1_numerator(y_position - eta);
 			auto gamma_dtheta = dsintheta_dtheta(theta0, k);
 
-			auto singularity_subtraction = (nonsingular_K * gamma_dtheta - singularity_coefficient);
+			auto singularity_subtraction = 
+				(nonsingular_K * gamma_dtheta - singularity_coefficient);
 			return singular_part * singularity_subtraction;
 		};
 
-		auto integral = HBTK::static_integrate(numerical_integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
-			+ HBTK::static_integrate(numerical_integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size())
+		auto integral = HBTK::static_integrate(numerical_integrand, 
+					std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size())
+			+ HBTK::static_integrate(numerical_integrand, 
+					std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size())
 			+ singularity_coefficient * 0.; // Glauert integral
 
 		assert(HBTK::check_finite(integral));
@@ -213,7 +217,8 @@ namespace mFlow {
 				* Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing) - cos(theta)));
 		};
 		// The singular part of the integrand evaluated.
-		auto singular_integral = wing.semispan() * ((cos(theta_sing)+1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
+		auto singular_integral = wing.semispan() * (
+			(cos(theta_sing)+1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
 			+ (cos(theta_sing) -1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)-1.))) 
 			+ exp(wing.semispan()*(cos(theta_sing) - 1.)) - exp(-wing.semispan()*(cos(theta_sing) + 1.));
 
@@ -228,8 +233,10 @@ namespace mFlow {
 		};
 
 		auto quad = split_quad(100, theta_sing);
-		auto int_lower = HBTK::static_integrate(numerical_integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
-		auto int_upper = HBTK::static_integrate(numerical_integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
+		auto int_lower = HBTK::static_integrate(numerical_integrand, 
+			std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
+		auto int_upper = HBTK::static_integrate(numerical_integrand, 
+			std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
 		auto singular_interal = ssm_variable * singular_integral;
 
 		auto complete_integral = integral_coefficient * (int_lower + int_upper + singular_integral);
