@@ -55,14 +55,14 @@ namespace mFlow {
 
 		// Once a solution has been computed, the complex vorticity at any point on the lifting line can be 
 		// evaluated.
-		std::complex<double> get_solution_vorticity(double y);
+		std::complex<double> solution_vorticity(double y);
 
 		// Once a solution has been computed, the interaction term, F (see eq5.2) can be evaluated
 		// at any point on the lifthing line.
 		std::complex<double> F(double y);
 
 		// Returns the added mass coefficient for the wing on the assumption it is elliptic.
-		double get_elliptic_added_mass_coefficient();
+		double elliptic_added_mass_coefficient();
 
 	protected:
 
@@ -106,6 +106,6 @@ namespace mFlow {
 		// Get a quadrature comprised of two polynomial regions split at split theta.
 		// Quadrature is for 0 -> pi. Outputs points_lower, weights_lower, points_upper, weights_upper
 		std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
-			get_split_quad(int total_pts, double split_theta);
+			split_quad(int total_pts, double split_theta);
 	};
 }

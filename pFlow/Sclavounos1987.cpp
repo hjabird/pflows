@@ -167,7 +167,7 @@ namespace mFlow {
 		auto theta_sing = acos(y_position / wing.semispan());
 		
 		const int num_quad_points = 30;
-		auto quad = get_split_quad(num_quad_points, theta_sing);
+		auto quad = split_quad(num_quad_points, theta_sing);
 
 		// We're using the singularity subtraction method.
 		auto singularity_coefficient = dsintheta_dtheta(theta_sing, k) * K_term1_numerator(0);
@@ -226,7 +226,7 @@ namespace mFlow {
 			return integrand;
 		};
 
-		auto quad = get_split_quad(100, theta_sing);
+		auto quad = split_quad(100, theta_sing);
 		auto int_lower = HBTK::static_integrate(numerical_integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
 		auto int_upper = HBTK::static_integrate(numerical_integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
 		auto singular_interal = ssm_variable * singular_integral;
@@ -288,7 +288,7 @@ namespace mFlow {
 		// Integrating the P term of of int ( Gamma'(eta) K(y-eta) deta).
 		// We're integrating in [0, singularity], [singularity, pi]
 		auto theta_sing = acos(y / wing.semispan());
-		auto quad = get_split_quad(40, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
+		auto quad = split_quad(40, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
 		auto integrand = [&](double theta0) {
 			auto eta = wing.semispan() * cos(theta0);
 			return dsintheta_dtheta(theta0, k) * K_term3(y - eta);
@@ -347,7 +347,7 @@ namespace mFlow {
 
 
 	std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
-		Sclavounos1987::get_split_quad(int total_pts, double split_theta)
+		Sclavounos1987::split_quad(int total_pts, double split_theta)
 	{
 		assert(total_pts >= 2);
 
@@ -443,7 +443,7 @@ namespace mFlow {
 	}
 
 
-	std::complex<double> Sclavounos1987::get_solution_vorticity(double y)
+	std::complex<double> Sclavounos1987::solution_vorticity(double y)
 	{
 		assert(m_solution.size() == number_of_terms);
 		assert(y <= abs(wing.semispan()) );
@@ -495,7 +495,7 @@ namespace mFlow {
 	}
 
 
-	double  Sclavounos1987::get_elliptic_added_mass_coefficient() {
+	double  Sclavounos1987::elliptic_added_mass_coefficient() {
 		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
 		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
 		// Integration of the flat plate term in eq4.4 results in the equivalent of AR=1, without the correction
