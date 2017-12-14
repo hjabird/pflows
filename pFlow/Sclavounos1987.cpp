@@ -157,7 +157,7 @@ namespace mFlow {
 		// K can be expanded into 3 terms as considered separatively as follows:
 		
 		auto integral1 = integrate_gammaprime_K_term1(y_position, k);
-		auto integral2 = 0.0; // integrate_gammaprime_K_term2(y_position, k);
+		auto integral2 = integrate_gammaprime_K_term2(y_position, k);
 		auto integral3 = integrate_gammaprime_K_term3(y_position, k);
 
 		return integral1 + integral2 + integral3;
@@ -242,51 +242,6 @@ namespace mFlow {
 		auto complete_integral = integral_coefficient * (int_lower + int_upper + ssm_variable * singular_integral);
 		assert(HBTK::check_finite(complete_integral));
 		return complete_integral;
-
-		// We want to split our integral to remove the abs(y-eta) and sign(y-eta) parts.
-		// Additionally, we'll using integration by parts followed by the singularity
-		// subtraction method. All integrating with respect to theta.
-		/*
-		// I = int(u dv) = uv - int(du v).
-		// dv = (2k+1) * cos((2k+1)theta), u = - 0.5 * sgn(y-eta) * v * i * E_1(v * abs(y-eta)) 
-
-		// integral of the fourier part to v
-		auto fourier_term = [&](double theta_0) {
-			return sin((2 * k + 1) * theta_0);
-		};
-
-		// Derivative of the K terms (ie. du)
-		auto K_term2_dtheta_singular = [&](double ypos, double eta) {
-			return  wing.semispan() / (ypos - eta);
-		};
-		auto K_term2_dtheta_singular_integral = [&](double theta) {
-			return 0.0; // From 0 to pi this is a Glauert Integral.
-		};
-		auto K_term2_dtheta_numerator = [&](double ypos, double eta) {
-			return HBTK::Constants::i() * (omega / U) * 0.5 * sin(acos(eta / wing.semispan())) 
-				* exp(-(omega / U) * abs(ypos - eta));
-		};
-
-		// compute uv:
-		auto uv = HBTK::Constants::i() * (omega / U) * Common::Exponential_int_E1(0.) * sin((2 * k + 1)*theta_sing);
-		
-		// compute int u dv		
-		auto ssm_coeff = fourier_term(theta_sing) * K_term2_dtheta_numerator(y, y);
-		auto integrand = [&](double theta_0) {
-			auto eta = wing.semispan() * cos(theta_0);
-			auto singular_bit = K_term2_dtheta_singular(y, eta);
-			auto nonsingular = fourier_term(theta_0) * K_term2_dtheta_numerator(y, eta);
-			return singular_bit * (nonsingular - ssm_coeff);
-		};
-		auto quad = get_split_quad(40, theta_sing);
-		auto intudv1 = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
-		auto intudv2 = HBTK::static_integrate(integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
-		auto intudv3 = ssm_coeff * K_term2_dtheta_singular_integral(theta_sing); // The integral of the singular bit is 0.
-		auto intudv = intudv1 + intudv2 + intudv3;
-
-		assert(HBTK::check_finite(intudv));
-		return -(uv + intudv);
-		*/
 	}
 
 
