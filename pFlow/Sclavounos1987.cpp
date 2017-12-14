@@ -232,7 +232,7 @@ namespace mFlow {
 			return integrand;
 		};
 
-		auto quad = split_quad(100, theta_sing);
+		auto quad = split_quad(100, theta_sing); // points_lower, weights_lower, points_upper, weights_upper
 		auto int_lower = HBTK::static_integrate(numerical_integrand, 
 			std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
 		auto int_upper = HBTK::static_integrate(numerical_integrand, 
@@ -313,13 +313,13 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::F(double y)
 	{
 		assert(y <= abs(wing.semispan()));
-		std::complex<double> F_res = 0.;
+		std::complex<double> result = 0.;
 		for (int idx = 0; idx < (int)m_solution.size(); idx++) {
-			F_res += integrate_gammaprime_K(y, idx) * m_solution[idx];
+			result += integrate_gammaprime_K(y, idx) * m_solution[idx];
 		}
-		F_res = F_res * -1. / (HBTK::Constants::i() * omega * 2. * HBTK::Constants::pi());
-		assert(HBTK::check_finite(F_res));
-		return F_res;
+		result = result * -1. / (HBTK::Constants::i() * omega * 2. * HBTK::Constants::pi());
+		assert(HBTK::check_finite(result));
+		return result;
 	}
 
 

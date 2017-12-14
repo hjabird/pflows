@@ -41,11 +41,11 @@ namespace mFlow {
 		WingProjectionGeometry wing;
 
 		// Parameters for simulation
-		double U;		// Free stream velocity.
-		double omega;	// Perturbation frequency.
-		int j;			// Analysis type. 3 or 5, corresponding to heave and pitch respectively.
+		double	U;					// Free stream velocity.
+		double	omega;				// Perturbation frequency.
+		int		j;					// Analysis type. 3 or 5, corresponding to heave and pitch respectively.
+		int		number_of_terms;	// Number of sin((2k+1)theta) terms used to approximate the vorticity distribution.
 		std::vector<double> m_collocation_points;	// In 0 to pi (in terms of theta)
-		int number_of_terms;	// Number of sin((2k+1)theta) terms used to approximate the vorticity distribution.
 
 		// Assuming that valid input parameters have been set, compute the solution, leaving results in m_solution.
 		void compute_solution();
@@ -99,6 +99,8 @@ namespace mFlow {
 		std::complex<double> integrate_gammaprime_K_term3(double y, int k); // P term
 
 		// Derivatives of the Gamma term.
+		// Gamma = Sum( A_{2k+1} * sin((2k+1) theta)) where y = semispan * cos( theta ).
+		// In terms of each Gamma_{2k+1} = A_{2k+1} * sin((2k+1) theta):
 		double dtheta_dy(double y);						// derivative of theta with respect to y.
 		double dsintheta_dy(double y, int k);			// derivative of sin((2k + 1)theta) wrt/ y.
 		double dsintheta_dtheta(double theta, int k);	// derivative of sin((2k+1)theta) wrt/ theta
