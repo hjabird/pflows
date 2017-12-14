@@ -1,9 +1,10 @@
 #pragma once
 /*////////////////////////////////////////////////////////////////////////////
-Guermond1991.h
+Sclavounos1987.h
 
 Equations from the paper "An unsteady lifting-line theory", P.D. Sclavounos,
-1987, Journal of Engineering Mathmatics
+1987, Journal of Engineering Mathmatics.
+https://doi.org/10.1007/BF00127464
 
 Copyright 2017 HJA Bird
 
