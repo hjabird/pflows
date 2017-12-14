@@ -58,7 +58,7 @@ namespace mFlow {
 		// evaluated.
 		std::complex<double> solution_vorticity(double y);
 
-		// Once a solution has been computed, the interaction term, F (see eq5.2) can be evaluated
+		// Once a solution has been computed, the interaction term, F (see eq5.1, eq5.2) can be evaluated
 		// at any point on the lifthing line.
 		std::complex<double> F(double y);
 

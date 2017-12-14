@@ -312,13 +312,13 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::F(double y)
 	{
 		assert(y <= abs(wing.semispan()));
-		std::complex<double> result = 0.;
-		for (int idx = 0; idx < (int)m_solution.size(); idx++) {
-			result += integrate_gammaprime_K(y, idx) * m_solution[idx];
+		assert((j == 3) || (j == 5));
+		if (j == 3) {
+			return 1. - solution_vorticity(y) / d_3(y);
 		}
-		result = result * -1. / (HBTK::Constants::i() * omega * 2. * HBTK::Constants::pi());
-		assert(HBTK::check_finite(result));
-		return result;
+		else { //j == 5
+			return (d_5(y) - solution_vorticity(y)) / d_3(y) - U / (HBTK::Constants::i() * omega);
+		}
 	}
 
 
