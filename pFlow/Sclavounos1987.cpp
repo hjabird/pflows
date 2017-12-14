@@ -50,12 +50,13 @@ namespace mFlow {
 	{
 	}
 
+
 	void Sclavounos1987::compute_collocation_points()
 	{
-		// After Eq 7.1 states these as local maxima of sin((N+1)theta). This doesn't work...
+		// After Eq 7.1 states these as local maxima of sin((N+1)theta). This doesn't work.
 		m_collocation_points.resize(number_of_terms);
-		const double hpi = HBTK::Constants::pi() / 2;
-		for (int idx = 0; idx < number_of_terms; idx++) {
+		const auto hpi = HBTK::Constants::pi() / 2;
+		for (auto idx = 0; idx < number_of_terms; idx++) {
 			m_collocation_points[idx] = (hpi + idx * HBTK::Constants::pi()) / (2 * number_of_terms);
 			//m_collocation_points[idx] = hpi / (idx + 1);
 			//m_collocation_points[idx] = hpi / (2*idx + 1);
@@ -64,16 +65,14 @@ namespace mFlow {
 		return;
 	}
 
+
 	std::complex<double> Sclavounos1987::d_3(double y)
 	{
 		assert(y <= abs(wing.semispan()));
-		double l; // semichord
-		double v; // Normalised frequency
+		auto l = wing.semichord(y);		// semichord
+		auto v = omega / U;				// Normalised frequency 
 
-		l = wing.semichord(y);
-		v = omega / U;
-
-		if (omega == 0.0) { return -2 * HBTK::Constants::pi() * l; }
+		if (omega == 0.0) { return -2 * HBTK::Constants::pi() * l; } // See Eq(5.5)
 
 		auto numerator = 4. * U * exp( - HBTK::Constants::i() * l * v);
 		auto denominator = HBTK::Constants::i() * Common::Hankel2_0(v * l) + Common::Hankel2_1(v * l);
@@ -82,10 +81,12 @@ namespace mFlow {
 		return numerator / denominator;
 	}
 
+
 	std::complex<double> Sclavounos1987::d_5(double y)
 	{
-		return -0.5 * wing.semichord(y) * d_3(y);
+		return - 0.5 * wing.semichord(y) * d_3(y); // Eq4.8. Y checked in d_3 function.
 	}
+
 
 	std::complex<double> Sclavounos1987::K(double y)
 	{
@@ -102,22 +103,19 @@ namespace mFlow {
 		return K_term1_numerator(y) * K_term1_singularity(y);
 	}
 
+
 	double Sclavounos1987::K_term1_singularity(double y)
 	{
 		assert(y != 0);
 		return 1. / y;
 	}
 
-	double Sclavounos1987::K_term1_singularity_integral(double singularity_pos)
-	{
-		return log2(singularity_pos + wing.semispan()) 
-			- log2(wing.semispan() - singularity_pos);
-	}
 
 	double Sclavounos1987::K_term1_numerator(double y)
 	{
 		return 0.5 * exp(- (omega / U) * abs(y));
 	}
+
 
 	std::complex<double> Sclavounos1987::K_term2(double y)
 	{
@@ -130,6 +128,7 @@ namespace mFlow {
 		assert(HBTK::check_finite(E_1_term));
 		return coeff * -1. * E_1_term;
 	}
+
 
 	std::complex<double> Sclavounos1987::K_term3(double y)
 	{
@@ -153,11 +152,12 @@ namespace mFlow {
 		// K can be expanded into 3 terms as considered separatively as follows:
 		
 		auto integral1 = integrate_gammaprime_K_term1(y_position, k);
-		auto integral2 = 0.0;//integrate_gammaprime_K_term2(y_position, k);
+		auto integral2 = integrate_gammaprime_K_term2(y_position, k);
 		auto integral3 = integrate_gammaprime_K_term3(y_position, k);
 
 		return integral1 + integral2 + integral3;
 	}
+
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term1(double y_position, int k)
 	{
@@ -187,6 +187,7 @@ namespace mFlow {
 		return -integral;
 	}
 
+
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term2(double y, int k)
 	{
 		assert(abs(y) <= wing.semispan());
@@ -194,10 +195,41 @@ namespace mFlow {
 
 		auto theta_sing = acos(y / wing.semispan());
 
+		auto integral_coefficient = HBTK::Constants::i() * omega / (2 * U);
+		auto non_singular = [&](double theta)->double {
+			return (2 * k + 1) * cos((2 * k + 1)*theta) / (wing.semispan() * sin(theta));
+		};
+		auto singular = [&](double theta)->std::complex<double> {
+			return wing.semispan() * sin(theta) * (theta > theta_sing ? 1. : -1.)
+				* Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing) - cos(theta)));
+		};
+		auto singular_integral = wing.semispan() * ((cos(theta_sing)+1.) * Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
+			+ (cos(theta_sing) -1.) * Common::Exponential_int_E1(wing.semispan() * abs(cos(theta_sing)-1.))) 
+			+ exp(wing.semispan()*(cos(theta_sing) - 1.)) - exp(-wing.semispan()*(cos(theta_sing) + 1.));
+
+		auto ssm_variable = non_singular(theta_sing);
+		auto numerical_integrand = [&](double theta) {
+			auto singular_var = singular(theta);
+			auto non_singular_var = non_singular(theta);
+			auto singularity_subtraction = non_singular_var - ssm_variable;
+			auto integrand = singular_var * singularity_subtraction;
+			return integrand;
+		};
+
+		auto quad = get_split_quad(100, theta_sing);
+		auto int_lower = HBTK::static_integrate(numerical_integrand, std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
+		auto int_upper = HBTK::static_integrate(numerical_integrand, std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
+		auto singular_interal = ssm_variable * singular_integral;
+
+		auto complete_integral = integral_coefficient * (int_lower + int_upper + singular_integral);
+		assert(HBTK::check_finite(complete_integral));
+
+		return complete_integral;
+
 		// We want to split our integral to remove the abs(y-eta) and sign(y-eta) parts.
 		// Additionally, we'll using integration by parts followed by the singularity
 		// subtraction method. All integrating with respect to theta.
-
+		/*
 		// I = int(u dv) = uv - int(du v).
 		// dv = (2k+1) * cos((2k+1)theta), u = - 0.5 * sgn(y-eta) * v * i * E_1(v * abs(y-eta)) 
 
@@ -235,19 +267,18 @@ namespace mFlow {
 		auto intudv3 = ssm_coeff * K_term2_dtheta_singular_integral(theta_sing); // The integral of the singular bit is 0.
 		auto intudv = intudv1 + intudv2 + intudv3;
 
-		// HBTK::GnuPlot plt;
-		// plt.plot([&](double x) { return integrand(x).imag(); }, 1e-5, HBTK::Constants::pi() - 1e-5);
-
 		assert(HBTK::check_finite(intudv));
 		return -(uv + intudv);
+		*/
 	}
+
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term3(double y, int k)
 	{
 		// Integrating the P term of of int ( Gamma'(eta) K(y-eta) deta).
-		// We're integrating in 0, pi.
-		double theta_sing = acos(y / wing.semispan());
-		auto quad = get_split_quad(40, theta_sing);
+		// We're integrating in [0, singularity], [singularity, pi]
+		auto theta_sing = acos(y / wing.semispan());
+		auto quad = get_split_quad(40, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
 		auto integrand = [&](double theta0) {
 			auto eta = wing.semispan() * cos(theta0);
 			return dsintheta_dtheta(theta0, k) * K_term3(y - eta);
@@ -258,6 +289,7 @@ namespace mFlow {
 
 		return integral;
 	}
+
 
 	std::complex<double> Sclavounos1987::F(double y)
 	{
@@ -293,6 +325,7 @@ namespace mFlow {
 		return dGammadt * dtdy;
 	}
 
+
 	double Sclavounos1987::dsintheta_dtheta(double theta, int k)
 	{
 		assert(theta >= 0);
@@ -300,6 +333,7 @@ namespace mFlow {
 		auto dGamma_dt = (2 * k + 1) * cos((2 * k + 1) * theta);
 		return dGamma_dt;
 	}
+
 
 	std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
 		Sclavounos1987::get_split_quad(int total_pts, double split_theta)
@@ -398,6 +432,7 @@ namespace mFlow {
 		return;
 	}
 
+
 	std::complex<double> Sclavounos1987::get_solution_vorticity(double y)
 	{
 		assert(m_solution.size() == number_of_terms);
@@ -415,25 +450,10 @@ namespace mFlow {
 		return sum;
 	}
 
-	std::complex<double> Sclavounos1987::get_solution_vorticity_deriv(double y)
-	{
-		assert(m_solution.size() == number_of_terms);
-		assert(y <= abs(wing.semispan()));
-
-		std::complex<double> sum(0, 0);
-		double theta;
-		for (int idx = 0; idx < number_of_terms; idx++) {
-			theta = acos( y / wing.semispan());
-			assert(HBTK::check_finite(m_solution[idx]));
-			sum += dsintheta_dy(y, idx) * m_solution[idx];
-		}
-
-		assert(HBTK::check_finite(sum));
-		return sum;
-	}
 
 	std::complex<double> Sclavounos1987::compute_lift_coeff(double heave_added_mass)
 	{
+		assert(omega != 0.);
 		std::complex<double> term_1, term_2,
 			term_11, term_12, term_21, term_22;
 
@@ -469,6 +489,7 @@ namespace mFlow {
 		assert(HBTK::check_finite(term_2));
 		return term_1 - term_2;
 	}
+
 
 	double get_elliptic_added_mass_coefficient(double a, double b) {
 		if (a < b) { std::swap(a, b); }

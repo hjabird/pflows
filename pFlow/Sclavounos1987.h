@@ -36,23 +36,20 @@ namespace mFlow {
 		Sclavounos1987();
 		~Sclavounos1987();
 
+		WingProjectionGeometry wing; // Geometry definition
 		double U; // Free stream velocity.
 		double omega; // Perturbation frequency.
 		int j; // Analysis type. 3 or 5.
-		WingProjectionGeometry wing; // Geometry definition
-
+		std::vector<double> m_collocation_points; // In 0 to pi (in terms of theta)
 		int number_of_terms; // Number of terms in fourier sine series.
+
 		void compute_solution(); // Compute solution.
-		std::complex<double> get_solution_vorticity(double y); // Once a solution has been computed values can be retrieved.
-		std::complex<double> get_solution_vorticity_deriv(double y); // Rate of change of vorticity wrt/ y.
 		std::complex<double> compute_lift_coeff(double heave_added_mass); // Solution must be computed first.
-
-
+		std::complex<double> get_solution_vorticity(double y); // Once a solution has been computed values can be retrieved.
 		std::complex<double> F(double y); // Eq5.2 - needs solution first.
 
-		std::vector<double> m_collocation_points; // In 0 to pi (in terms of theta
 
-		double get_elliptic_added_mass_coefficient(double a, double b); // Get added mass for ellipse
+		//double get_elliptic_added_mass_coefficient(double a, double b); // Get added mass for ellipse
 
 	protected:
 
@@ -70,7 +67,6 @@ namespace mFlow {
 		std::complex<double> K(double y); // Eq3.20
 		double K_term1(double y); // Singular part of K including numerator term
 		double K_term1_singularity(double y); // Just the 1 / (sing_pos - x) term
-		double K_term1_singularity_integral(double singularity_pos); // The integral of the singular bit over the span.
 		double K_term1_numerator(double y); // The part of the singular term that is nice.
 		std::complex<double> K_term2(double y); // The E1 part of K
 		std::complex<double> K_term3(double y); // The E_1 and P parts of K

@@ -41,6 +41,7 @@ public:
 	const double semispan();
 	double standard_chord();
 	double area();
+	double aspect_ratio();
 
 	// Functions c_l(Y) describing the x pos of the leading
 	// and trailing edge in terms of y. Assumed valid for 
@@ -50,14 +51,15 @@ public:
 
 protected:
 	// So whe know when to recalculate std_chord and area.
-	bool m_valid_standard_chord, m_valid_area;
+	bool m_valid_standard_chord, m_valid_area, m_valid_aspect_ratio;
 	double m_standard_chord;
 	double m_area;
+	double m_aspect_ratio;
 
 	void invalidate_calculations();
 	// Calculate the std chord based on wing are and span.
 	void calculate_standard_chord();
 	void calculate_wing_area();
-
+	void calculate_aspect_ratio();
 };
 

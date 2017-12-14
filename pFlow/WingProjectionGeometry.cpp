@@ -121,11 +121,21 @@ double WingProjectionGeometry::area()
 	return m_area;
 }
 
+double WingProjectionGeometry::aspect_ratio()
+{
+	if (!m_valid_aspect_ratio)
+	{
+		calculate_aspect_ratio();
+	}
+	return m_aspect_ratio;
+}
+
 
 void WingProjectionGeometry::invalidate_calculations()
 {
 	m_valid_area = false;
 	m_valid_standard_chord = false;
+	m_valid_aspect_ratio = false;
 }
 
 void WingProjectionGeometry::calculate_standard_chord()
@@ -144,5 +154,12 @@ void WingProjectionGeometry::calculate_wing_area()
 	};
 	m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
 	assert(HBTK::check_finite(m_area));
+	return;
+}
+
+void WingProjectionGeometry::calculate_aspect_ratio()
+{
+	m_aspect_ratio = span / area();
+	m_valid_aspect_ratio = true;
 	return;
 }
