@@ -73,8 +73,8 @@ namespace mFlow {
 		// so is cached.
 		Eigen::Matrix<std::complex<double>, -1, -1> m_gammaprime_K_matrix;
 
-		// Setup
-		void compute_collocation_points();
+		// Calculate the angular positions of the collocation points used.
+		void set_collocation_points();
 
 		// Unsteady vortex coefficients:
 		std::complex<double> d_3(double y); // Eq4.3 - heave

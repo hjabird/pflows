@@ -52,7 +52,7 @@ namespace mFlow {
 	}
 
 
-	void Sclavounos1987::compute_collocation_points()
+	void Sclavounos1987::set_collocation_points()
 	{
 		// After Eq 7.1 states these as local maxima of sin((N+1)theta). This doesn't work.
 		m_collocation_points.resize(number_of_terms);
@@ -157,7 +157,7 @@ namespace mFlow {
 		// K can be expanded into 3 terms as considered separatively as follows:
 		
 		auto integral1 = integrate_gammaprime_K_term1(y_position, k);
-		auto integral2 = integrate_gammaprime_K_term2(y_position, k);
+		auto integral2 = 0.0; // integrate_gammaprime_K_term2(y_position, k);
 		auto integral3 = integrate_gammaprime_K_term3(y_position, k);
 
 		return integral1 + integral2 + integral3;
@@ -204,27 +204,28 @@ namespace mFlow {
 
 		// The singularity position in terms of the angle theta.
 		auto theta_sing = acos(y / wing.semispan());
+		double v = omega / U;
 
 		auto integral_coefficient = HBTK::Constants::i() * omega / (2 * U);
 
 		// The non-singular part of the integrand
 		auto non_singular = [&](double theta)->double {
-			return (2 * k + 1) * cos((2 * k + 1)*theta) / (wing.semispan() * sin(theta));
+			return (2 * k + 1) * cos((2 * k + 1)*theta) / (v * wing.semispan() * sin(theta));
 		};
 		// The singular part of the integrand
 		auto singular = [&](double theta)->std::complex<double> {
-			return wing.semispan() * sin(theta) * (theta > theta_sing ? 1. : -1.)
-				* Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing) - cos(theta)));
+			return v * wing.semispan() * sin(theta) * (theta > theta_sing ? 1. : -1.)
+				* Common::exponential_int_E1(v * wing.semispan() * abs(cos(theta_sing) - cos(theta)));
 		};
 		// The singular part of the integrand evaluated.
-		auto singular_integral = wing.semispan() * (
-			(cos(theta_sing)+1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)+1.))
-			+ (cos(theta_sing) -1.) * Common::exponential_int_E1(wing.semispan() * abs(cos(theta_sing)-1.))) 
-			+ exp(wing.semispan()*(cos(theta_sing) - 1.)) - exp(-wing.semispan()*(cos(theta_sing) + 1.));
+		auto singular_integral = v * wing.semispan() * (
+			(cos(theta_sing)+1.) * Common::exponential_int_E1(v * wing.semispan() * (cos(theta_sing)+1.))
+			+ (cos(theta_sing) -1.) * Common::exponential_int_E1(v * wing.semispan() * (1. - cos(theta_sing)))) 
+			+ exp(v * wing.semispan()*(cos(theta_sing) - 1.)) - exp(-v * wing.semispan()*(cos(theta_sing) + 1.));
 
 		// The singularity subtraction method is used here.
 		auto ssm_variable = non_singular(theta_sing);
-		auto numerical_integrand = [&](double theta) {
+		auto numerical_integrand = [&](double theta)->std::complex<double> {
 			auto singular_var = singular(theta);
 			auto non_singular_var = non_singular(theta);
 			auto singularity_subtraction = non_singular_var - ssm_variable;
@@ -232,16 +233,14 @@ namespace mFlow {
 			return integrand;
 		};
 
-		auto quad = split_quad(100, theta_sing); // points_lower, weights_lower, points_upper, weights_upper
+		auto quad = split_quad(50, theta_sing); // points_lower, weights_lower, points_upper, weights_upper
 		auto int_lower = HBTK::static_integrate(numerical_integrand, 
 			std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
 		auto int_upper = HBTK::static_integrate(numerical_integrand, 
 			std::get<2>(quad), std::get<3>(quad), std::get<2>(quad).size());
-		auto singular_interal = ssm_variable * singular_integral;
 
-		auto complete_integral = integral_coefficient * (int_lower + int_upper + singular_integral);
+		auto complete_integral = integral_coefficient * (int_lower + int_upper + ssm_variable * singular_integral);
 		assert(HBTK::check_finite(complete_integral));
-
 		return complete_integral;
 
 		// We want to split our integral to remove the abs(y-eta) and sign(y-eta) parts.
@@ -297,7 +296,7 @@ namespace mFlow {
 		// We're integrating in [0, singularity], [singularity, pi]
 		auto theta_sing = acos(y / wing.semispan());
 		auto quad = split_quad(40, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
-		auto integrand = [&](double theta0) {
+		auto integrand = [&](double theta0)->std::complex<double> {
 			auto eta = wing.semispan() * cos(theta0);
 			return dsintheta_dtheta(theta0, k) * K_term3(y - eta);
 		};
@@ -386,7 +385,7 @@ namespace mFlow {
 		assert(j == 3 || j == 5);
 		assert(number_of_terms > 0);
 
-		compute_collocation_points();
+		set_collocation_points();
 
 		// Allocation of matrices.
 		m_solution.resize(number_of_terms);
@@ -410,9 +409,8 @@ namespace mFlow {
 			}
 		}
 
-		// Compute integ_diff_matrix
+		// Compute integ_diff_matrix - the second term of eq5.3 with the integral in it.
 		for (int i = 0; i < number_of_terms; i++) {
-
 			auto y_position = wing.semispan() * cos(m_collocation_points[i]);
 			std::complex<double> ext_coeff;
 			if (omega != 0) { 
@@ -483,23 +481,23 @@ namespace mFlow {
 			return C * semichord * F_3 * sin(theta);
 		};
 
-		term_11 = -4. / wing.area();
-		const int n_pts = 60;
+		term_11 = -8. * wing.semispan() / wing.area();
+		const int n_pts = 40;
 		std::array<double, n_pts> points, weights;
 		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < n_pts; idx++) {
 			HBTK::linear_remap(points[idx], weights[idx], -1., 1., 0., HBTK::Constants::pi()/2);
 		}
-		term_12 = wing.semispan() * 2.0 * HBTK::static_integrate(integrand, points, weights, n_pts);
-		term_1 = term_11 * term_12;
+		term_12 = HBTK::static_integrate(integrand, points, weights, n_pts);
+		term_1  = term_11 * term_12;
 
-		term_21 = HBTK::Constants::i() * (omega / U);
+		term_21 = -1. * HBTK::Constants::i() * (omega / U);
 		term_22 = heave_added_mass / wing.area();
-		term_2 = term_21 * term_22;
+		term_2  = term_21 * term_22;
 
 		assert(HBTK::check_finite(term_1));
 		assert(HBTK::check_finite(term_2));
-		return term_1 - term_2;
+		return term_1 + term_2;
 	}
 
 

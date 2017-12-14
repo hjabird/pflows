@@ -159,7 +159,7 @@ void WingProjectionGeometry::calculate_wing_area()
 
 void WingProjectionGeometry::calculate_aspect_ratio()
 {
-	m_aspect_ratio = span / area();
+	m_aspect_ratio = span*span / area();
 	m_valid_aspect_ratio = true;
 	return;
 }
