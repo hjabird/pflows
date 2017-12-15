@@ -22,6 +22,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
 #include <functional>
+#include "../../HBTK/HBTK/GnuPlot.h"
 
 class WingProjectionGeometry
 {
@@ -48,6 +49,8 @@ public:
 	// Y = [-B/2, B/2] where B is span.
 	std::function<double(const double &)> m_LE_expr;
 	std::function<double(const double &)> m_TE_expr;
+
+	void add_to_plot(HBTK::GnuPlot &plot);
 
 protected:
 	// So whe know when to recalculate std_chord and area.

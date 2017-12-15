@@ -52,7 +52,9 @@ namespace mFlow {
 
 		// Once the solution has been computed, the lift coefficient may be computed. The heave added mass
 		// coefficient, given as a_{33} for heave added mass must be given. NB: a_{33} = 2m_{33} / \rho
-		std::complex<double> compute_lift_coeff(double heave_added_mass);
+		std::complex<double> compute_lift_coeff_j3(double heave_added_mass);
+		// Once the solution has been computed, the lift coefficient may be computed.
+		std::complex<double> compute_lift_coeff_j5();
 
 		// Once a solution has been computed, the complex vorticity at any point on the lifting line can be 
 		// evaluated.
@@ -64,6 +66,8 @@ namespace mFlow {
 
 		// Returns the added mass coefficient for the wing on the assumption it is elliptic.
 		double elliptic_added_mass_coefficient();
+		// Returns the added mass coefficient for the wing on the assumption it is rectangular.
+		double rectangular_added_mass_coefficient();
 
 	protected:
 

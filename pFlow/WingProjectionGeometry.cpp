@@ -130,6 +130,17 @@ double WingProjectionGeometry::aspect_ratio()
 	return m_aspect_ratio;
 }
 
+void WingProjectionGeometry::add_to_plot(HBTK::GnuPlot &plot) {
+	plot.hold_on();
+	plot.replot_off();
+	plot.plot([&](double x)->double {return m_LE_expr(x); }, -semispan(), semispan(), "k-");
+	plot.plot([&](double x)->double {return m_TE_expr(x); }, -semispan(), semispan(), "k-");
+	plot.replot_on();
+	plot.axis_equal_on();
+	plot.hold_off();
+	plot.replot();
+	return;
+}
 
 void WingProjectionGeometry::invalidate_calculations()
 {

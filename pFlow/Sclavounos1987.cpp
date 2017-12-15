@@ -59,8 +59,6 @@ namespace mFlow {
 		const auto hpi = HBTK::Constants::pi() / 2;
 		for (auto idx = 0; idx < number_of_terms; idx++) {
 			m_collocation_points[idx] = (hpi + idx * HBTK::Constants::pi()) / (2 * number_of_terms);
-			//m_collocation_points[idx] = hpi / (idx + 1);
-			//m_collocation_points[idx] = hpi / (2*idx + 1);
 			assert(m_collocation_points[idx] <= HBTK::Constants::pi() && m_collocation_points[idx] >= 0.);
 		}
 		return;
@@ -422,9 +420,10 @@ namespace mFlow {
 	}
 
 
-	std::complex<double> Sclavounos1987::compute_lift_coeff(double heave_added_mass)
+	std::complex<double> Sclavounos1987::compute_lift_coeff_j3(double heave_added_mass)
 	{
 		assert(omega != 0.);
+		assert(j == 3);
 		std::complex<double> term_1, term_2,
 			term_11, term_12, term_21, term_22;
 
@@ -433,7 +432,7 @@ namespace mFlow {
 			auto semichord = wing.semichord(y);
 			auto F_3 = F(y);
 			auto C = Common::theodorsen_function((omega / U) * semichord);
-			return C * semichord * F_3 * sin(theta);
+			return C * semichord * HBTK::Constants::pi() * (1. - F_3) * sin(theta);
 		};
 
 		term_11 = -8. * wing.semispan() / wing.area();
@@ -456,6 +455,36 @@ namespace mFlow {
 	}
 
 
+	std::complex<double> Sclavounos1987::compute_lift_coeff_j5() 
+	{
+		assert(omega != 0.);
+		assert(j == 5);
+		std::complex<double> term_1, term_11, term_12;
+
+		auto integrand = [&](double theta) -> std::complex<double> {
+			auto y = wing.semispan() * cos(theta);
+			auto semichord = wing.semichord(y);
+			auto F_5 = F(y);
+			auto C = Common::theodorsen_function((omega / U) * semichord);
+			auto circulation = (1. + 2. * (U / (HBTK::Constants::i() * omega) + F_5));
+			return C * semichord * HBTK::Constants::pi() * circulation * sin(theta);
+		};
+
+		term_11 = 4. * wing.semispan() / wing.area();
+		const int n_pts = 40;
+		std::array<double, n_pts> points, weights;
+		HBTK::gauss_legendre(points, weights);
+		for (int idx = 0; idx < n_pts; idx++) {
+			HBTK::linear_remap(points[idx], weights[idx], -1., 1., 0., HBTK::Constants::pi() / 2);
+		}
+		term_12 = HBTK::static_integrate(integrand, points, weights, n_pts);
+		term_1 = term_11 * term_12;
+
+		assert(HBTK::check_finite(term_1));
+		return term_1;
+	}
+
+
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {
 		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
 		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
@@ -469,6 +498,34 @@ namespace mFlow {
 		// Linear interpolation of correction for ellipse from circle.
 		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 4., 6., 8.19, 10.34, 14.30, 10000. }; // To inf really.
 		std::vector<double> known_coeffs = { 0.637, 0.748, 0.826, 0.900, 0.933, 0.964, 0.978, 0.985, 0.991, 1.000 };
+		double coeff = 0;
+		int lower_known = -1;
+		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
+			if (ratio >= known_ratios[idx]) {
+				lower_known = idx;
+			}
+		}
+		if (lower_known == 0) { coeff = known_ratios[0]; } // == 1.
+
+		double fraction = (ratio - known_ratios[lower_known]) / (known_ratios[lower_known + 1] - known_ratios[lower_known]);
+		coeff = (known_coeffs[lower_known + 1] - known_coeffs[lower_known]) * fraction + known_coeffs[lower_known];
+		added_mass *= 2 * coeff;
+		return added_mass;
+	}
+
+
+	double Sclavounos1987::rectangular_added_mass_coefficient()
+	{
+		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
+		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
+		double a = wing.span;
+		double b = wing.chord(0.);
+		if (a < b) { std::swap(a, b); }
+		double added_mass = a * b * b * HBTK::Constants::pi() / 4.;
+		double ratio = a / b;
+		// Linear interpolation of correction for ellipse from circle.
+		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 10000. }; // To inf really.
+		std::vector<double> known_coeffs = { 0.478, 0.680, 0.840, 1.000, 1.000 };
 		double coeff = 0;
 		int lower_known = -1;
 		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
