@@ -149,6 +149,7 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="Sclavounos1987.h" />
+    <ClInclude Include="WingGenerators.h" />
     <ClInclude Include="WingProjectionGeometry.h" />
     <ClInclude Include="Guermond1991.h" />
     <ClInclude Include="stdafx.h" />
@@ -158,6 +159,7 @@
   <ItemGroup>
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="Sclavounos1987.cpp" />
+    <ClCompile Include="WingGenerators.cpp" />
     <ClCompile Include="WingProjectionGeometry.cpp" />
     <ClCompile Include="Guermond1991.cpp" />
     <ClCompile Include="stdafx.cpp">

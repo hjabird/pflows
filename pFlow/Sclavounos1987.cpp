@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Sclavounos1987.h"
 /*////////////////////////////////////////////////////////////////////////////
-Sclavounos1987.h
+Sclavounos1987.cpp
 
 Equations from the paper "An unsteady lifting-line theory", P.D. Sclavounos,
 1987, Journal of Engineering Mathmatics.
@@ -70,16 +70,13 @@ namespace mFlow {
 
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, 1> circ_vector;
 		circ_vector.resize(number_of_terms);
-		if (j == 3) {
-			for (int i = 0; i < number_of_terms; i++) {
-				auto y = wing.semispan()*cos(m_collocation_points[i]);
+		for (int i = 0; i < number_of_terms; i++) {
+			auto y = wing.semispan()*cos(m_collocation_points[i]);
+			if (j == 3) {
 				circ_vector[i] = d_3(y);
 			}
-		}
-		else if (j == 5) {
-			for (int i = 0; i < number_of_terms; i++) {
-				auto y = wing.semispan()*cos(m_collocation_points[i]);
-				circ_vector[i] = d_5(y) - U * d_3(y) / (HBTK::Constants::i() * omega);
+			else if (j == 5) { 
+				circ_vector[i] = d_5(y) - U * d_3(y) / (HBTK::Constants::i() * omega); 
 			}
 		}
 		return circ_vector;
