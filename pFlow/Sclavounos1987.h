@@ -79,6 +79,8 @@ namespace mFlow {
 
 		// Calculate the angular positions of the collocation points used.
 		void set_collocation_points();
+		// Compute the strip theory circulation coefficient vector (d_j(y) at collocation points).
+		Eigen::Matrix<std::complex<double>, -1, 1> strip_theory_circulation_coefficients();
 
 		// Unsteady vortex coefficients:
 		std::complex<double> d_3(double y); // Eq4.3 - heave

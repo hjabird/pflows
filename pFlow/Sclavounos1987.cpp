@@ -64,6 +64,27 @@ namespace mFlow {
 		return;
 	}
 
+	Eigen::Matrix<std::complex<double>, -1, 1> Sclavounos1987::strip_theory_circulation_coefficients()
+	{
+		assert((j == 3) || (j == 5));
+
+		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, 1> circ_vector;
+		circ_vector.resize(number_of_terms);
+		if (j == 3) {
+			for (int i = 0; i < number_of_terms; i++) {
+				auto y = wing.semispan()*cos(m_collocation_points[i]);
+				circ_vector[i] = d_3(y);
+			}
+		}
+		else if (j == 5) {
+			for (int i = 0; i < number_of_terms; i++) {
+				auto y = wing.semispan()*cos(m_collocation_points[i]);
+				circ_vector[i] = d_5(y) - U * d_3(y) / (HBTK::Constants::i() * omega);
+			}
+		}
+		return circ_vector;
+	}
+
 
 	std::complex<double> Sclavounos1987::d_3(double y)
 	{
@@ -347,13 +368,10 @@ namespace mFlow {
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> integ_diff_matrix;
 		// For the probem in for Ax = b, solve for x, this is A.
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> LHS_matrix;
-		// RHS vector
-		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, 1> RHS_vector;
 		gamma_matrix.resize(number_of_terms, number_of_terms);
 		integ_diff_matrix.resize(number_of_terms, number_of_terms);
 		m_gammaprime_K_matrix = integ_diff_matrix;
 		LHS_matrix.resize(number_of_terms, number_of_terms);
-		RHS_vector.resize(number_of_terms);
 
 		// Compute gamma_matrix;
 		for (int i = 0; i < number_of_terms; i++) {
@@ -381,20 +399,7 @@ namespace mFlow {
 		} // End for in i
 
 		LHS_matrix = gamma_matrix - integ_diff_matrix;
-		
-		// Generate RHS vector:
-		if (j == 3) {
-			for (int i = 0; i < number_of_terms; i++) {
-				auto y = wing.semispan()*cos(m_collocation_points[i]);
-				RHS_vector[i] = d_3(y);
-			}
-		}
-		else if (j == 5) {
-			for (int i = 0; i < number_of_terms; i++) {
-				auto y = wing.semispan()*cos(m_collocation_points[i]);
-				RHS_vector[i] = d_5(y) - U * d_3(y) / (HBTK::Constants::i() * omega);
-			}
-		}
+		auto RHS_vector = Sclavounos1987::strip_theory_circulation_coefficients();
 
 		assert(abs(LHS_matrix.determinant()) >= 1e-5);  
 		m_solution = LHS_matrix.lu().solve(RHS_vector); // Solve matrix problem using LU decomposition.
