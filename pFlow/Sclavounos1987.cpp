@@ -85,6 +85,34 @@ namespace mFlow {
 		return circ_vector;
 	}
 
+	Eigen::MatrixXd Sclavounos1987::gamma_terms_matrix()
+	{
+		assert((int)m_collocation_points.size() == number_of_terms);
+		Eigen::MatrixXd gamma_matrix; // The matrix that directly gives vorticities at given points.
+		gamma_matrix.resize(number_of_terms, number_of_terms);
+
+		for (int i = 0; i < number_of_terms; i++) {
+			for (int j = 0; j < number_of_terms; j++) {
+				assert(m_collocation_points[i] < HBTK::Constants::pi());
+				assert(m_collocation_points[i] > 0);
+				gamma_matrix(i, j) = sin((2 * j + 1) * m_collocation_points[i]);
+			}
+		}
+		return gamma_matrix;
+	}
+
+	std::complex<double> Sclavounos1987::integral_diff_coefficient_for_finding_circ(double y_position)
+	{
+		std::complex<double> ext_coeff;
+		if (omega != 0) {
+			ext_coeff = d_3(y_position) / (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
+		}
+		else {
+			ext_coeff = -wing.semichord(y_position);
+		}
+		return ext_coeff;
+	}
+
 
 	std::complex<double> Sclavounos1987::d_3(double y)
 	{
@@ -360,49 +388,23 @@ namespace mFlow {
 		assert(number_of_terms > 0);
 
 		set_collocation_points();
-
-		// Allocation of matrices.
 		m_solution.resize(number_of_terms);
-		Eigen::MatrixXd gamma_matrix; // The matrix that directly gives vorticities at given points.
-		// The matrix that representsthe integro-differential part.
-		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> integ_diff_matrix;
-		// For the probem in for Ax = b, solve for x, this is A.
-		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> LHS_matrix;
-		gamma_matrix.resize(number_of_terms, number_of_terms);
-		integ_diff_matrix.resize(number_of_terms, number_of_terms);
-		m_gammaprime_K_matrix = integ_diff_matrix;
-		LHS_matrix.resize(number_of_terms, number_of_terms);
-
-		// Compute gamma_matrix;
-		for (int i = 0; i < number_of_terms; i++) {
-			for (int j = 0; j < number_of_terms; j++) {
-				gamma_matrix(i, j) = sin((2 * j + 1) * m_collocation_points[i]);
-			}
-		}
+		auto gamma_matrix = gamma_terms_matrix();
 
 		// Compute integ_diff_matrix - the second term of eq5.3 with the integral in it.
+		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> integ_diff_matrix;
+		integ_diff_matrix.resize(number_of_terms, number_of_terms);
 		for (int i = 0; i < number_of_terms; i++) {
 			auto y_position = wing.semispan() * cos(m_collocation_points[i]);
-			std::complex<double> ext_coeff;
-			if (omega != 0) { 
-				ext_coeff = d_3(y_position)	/ (2 * HBTK::Constants::pi() * omega * HBTK::Constants::i());
-			} else {
-				ext_coeff = - wing.semichord(y_position);
-			}
-
+			std::complex<double> ext_coeff = integral_diff_coefficient_for_finding_circ(y_position);
 			for (int j = 0; j < number_of_terms; j++) 
-			{
-				auto integral = integrate_gammaprime_K(y_position, j);
-				m_gammaprime_K_matrix(i, j) = integral;
-				integ_diff_matrix(i, j) = ext_coeff * integral;
+			{ 
+				integ_diff_matrix(i, j) = ext_coeff * integrate_gammaprime_K(y_position, j);
 			} // End For in j
 		} // End for in i
 
-		LHS_matrix = gamma_matrix - integ_diff_matrix;
 		auto RHS_vector = Sclavounos1987::strip_theory_circulation_coefficients();
-
-		assert(abs(LHS_matrix.determinant()) >= 1e-5);  
-		m_solution = LHS_matrix.lu().solve(RHS_vector); // Solve matrix problem using LU decomposition.
+		m_solution = (gamma_matrix - integ_diff_matrix).lu().solve(RHS_vector);
 		return;
 	}
 

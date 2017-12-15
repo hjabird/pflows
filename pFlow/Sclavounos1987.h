@@ -73,14 +73,15 @@ namespace mFlow {
 
 		// The coefficients A_{2k+1} computed using eq5.2.
 		Eigen::Matrix<std::complex<double>, -1, 1> m_solution;
-		// The matrix integrate(Gamma'(eta) * K(y-eta) deta) was expensive to evaluate and 
-		// so is cached.
-		Eigen::Matrix<std::complex<double>, -1, -1> m_gammaprime_K_matrix;
 
 		// Calculate the angular positions of the collocation points used.
 		void set_collocation_points();
 		// Compute the strip theory circulation coefficient vector (d_j(y) at collocation points).
 		Eigen::Matrix<std::complex<double>, -1, 1> strip_theory_circulation_coefficients();
+		// Compute the gamma matrix for eq5.3.
+		Eigen::MatrixXd gamma_terms_matrix();
+		// The coefficient for the integral in eq5.3
+		std::complex<double> integral_diff_coefficient_for_finding_circ(double y);
 
 		// Unsteady vortex coefficients:
 		std::complex<double> d_3(double y); // Eq4.3 - heave
