@@ -39,6 +39,9 @@
     <ClInclude Include="WingGenerators.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="McGowan2011.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -57,6 +60,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="WingGenerators.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="McGowan2011.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

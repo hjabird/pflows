@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
+    <ClInclude Include="McGowan2011.h" />
     <ClInclude Include="Sclavounos1987.h" />
     <ClInclude Include="WingGenerators.h" />
     <ClInclude Include="WingProjectionGeometry.h" />
@@ -158,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common.cpp" />
+    <ClCompile Include="McGowan2011.cpp" />
     <ClCompile Include="Sclavounos1987.cpp" />
     <ClCompile Include="WingGenerators.cpp" />
     <ClCompile Include="WingProjectionGeometry.cpp" />
