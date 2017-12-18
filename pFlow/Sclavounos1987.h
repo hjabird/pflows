@@ -25,6 +25,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <functional>
 #include <complex>
 #include <vector>
+#include <tuple>
 
 #include <Eigen/Dense>
 
@@ -36,6 +37,12 @@ namespace mFlow {
 	public:
 		Sclavounos1987();
 		~Sclavounos1987();
+
+		// Get the lift against time for a single period of oscillation, for given amplitudes,
+		// phase offset of pitch against heave, frequency and wing geometry.
+		static  std::complex<double> conventional_lift_coefficient(double heave_amplitude, 
+			double pitch_amplitude, double phase_offset, double frequency, 
+			WingProjectionGeometry wing, double heave_added_mass_a33);
 
 		// Geometry definition
 		WingProjectionGeometry wing;
@@ -77,7 +84,7 @@ namespace mFlow {
 		// Calculate the angular positions of the collocation points used.
 		void set_collocation_points();
 		// Compute the strip theory circulation coefficient vector (d_j(y) at collocation points).
-		Eigen::Matrix<std::complex<double>, -1, 1> strip_theory_circulation_coefficients();
+		Eigen::Matrix<std::complex<double>, -1, 1> rhs_vector_of_circulations();
 		// Compute the gamma matrix for eq5.3.
 		Eigen::MatrixXd gamma_terms_matrix();
 		// The coefficient for the integral in eq5.3
@@ -118,4 +125,11 @@ namespace mFlow {
 		std::tuple<std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
 			split_quad(int total_pts, double split_theta);
 	};
+
+
+	// Returns the added mass coefficient for an ellipse.
+	double elliptic_added_mass_coefficient(double span, double chord);
+	// Returns the added mass coefficient for a rectangle.
+	double rectangular_added_mass_coefficient(double span, double chord);
+
 }

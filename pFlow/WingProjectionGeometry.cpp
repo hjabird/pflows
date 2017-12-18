@@ -82,15 +82,15 @@ namespace mFlow {
 		return (leading_edge_X(Y_Global) + trailing_edge_X(Y_Global)) / 2.0;
 	}
 
-	double WingProjectionGeometry::cos_angle_between_midchord_and_edge(double Y_global)
+	double WingProjectionGeometry::midchord_sweep_angle(double Y_global)
 	{
 		std::function<double(double)> fn = [&](double y) {return midchord_X(y); };
 		double dydx = HBTK::central_difference_O1A2(fn, Y_global);
 		assert(HBTK::check_finite(dydx));
-		return cos(atan(dydx));
+		return atan(dydx);
 	}
 
-	double WingProjectionGeometry::radius_of_midchord(double Y_global)
+	double WingProjectionGeometry::midchord_radius_of_curvature(double Y_global)
 	{
 		std::function<double(double)> fn = [&](double y) {return midchord_X(y); };
 		double dx_term = HBTK::central_difference_O1A2(fn, Y_global);

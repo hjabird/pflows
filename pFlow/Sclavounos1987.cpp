@@ -36,6 +36,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include "../../HBTK/HBTK/Checks.h"
 #include "../../HBTK/HBTK/Generators.h"
 #include "../../HBTK/HBTK/GnuPlot.h"
+#include "../../HBTK/HBTK/Interpolators.h"
 
 #include <Eigen/LU>
 
@@ -51,6 +52,36 @@ namespace mFlow {
 	{
 	}
 
+	std::complex<double> Sclavounos1987::conventional_lift_coefficient(double heave_amplitude, 
+		double pitch_amplitude, double phase_offset, double frequency, WingProjectionGeometry wing,
+		double heave_added_mass_a33)
+	{
+		assert(frequency > 0);
+		assert(HBTK::check_finite(heave_amplitude));
+		assert(HBTK::check_finite(pitch_amplitude));
+
+		std::complex<double> heave_cl, pitch_cl;
+		Sclavounos1987 analysis;
+		analysis.wing = wing;
+		analysis.U = 1.0;
+		analysis.omega = frequency;
+		analysis.number_of_terms = 8;
+
+		analysis.j = 3;
+		analysis.compute_solution();
+		heave_cl = analysis.compute_lift_coeff_j3(heave_added_mass_a33) * heave_amplitude  
+			* (analysis.omega / analysis.U);
+
+		analysis.j = 5;
+		analysis.compute_solution();
+		pitch_cl = analysis.compute_lift_coeff_j5() * pitch_amplitude * (analysis.omega/analysis.U);
+		pitch_cl *= exp(HBTK::Constants::i() * phase_offset);
+
+		assert(HBTK::check_finite(pitch_cl));
+		assert(HBTK::check_finite(heave_cl));
+		return (heave_cl + pitch_cl) * HBTK::Constants::i();
+	}
+
 
 	void Sclavounos1987::set_collocation_points()
 	{
@@ -64,7 +95,7 @@ namespace mFlow {
 		return;
 	}
 
-	Eigen::Matrix<std::complex<double>, -1, 1> Sclavounos1987::strip_theory_circulation_coefficients()
+	Eigen::Matrix<std::complex<double>, -1, 1> Sclavounos1987::rhs_vector_of_circulations()
 	{
 		assert((j == 3) || (j == 5));
 
@@ -400,7 +431,7 @@ namespace mFlow {
 			} // End For in j
 		} // End for in i
 
-		auto RHS_vector = Sclavounos1987::strip_theory_circulation_coefficients();
+		auto RHS_vector = Sclavounos1987::rhs_vector_of_circulations();
 		m_solution = (gamma_matrix - integ_diff_matrix).lu().solve(RHS_vector);
 		return;
 	}
@@ -470,8 +501,8 @@ namespace mFlow {
 			auto semichord = wing.semichord(y);
 			auto F_5 = F(y);
 			auto C = Common::theodorsen_function((omega / U) * semichord);
-			auto circulation = (1. + 2. * (U / (HBTK::Constants::i() * omega) + F_5));
-			return C * semichord * HBTK::Constants::pi() * circulation * sin(theta);
+			auto circulation = semichord * (C + 1.) + HBTK::Constants::i() * F_5 + U / omega;
+			return HBTK::Constants::pi() * semichord * sin(theta) * circulation;
 		};
 
 		term_11 = 4. * wing.semispan() / wing.area();
@@ -490,59 +521,13 @@ namespace mFlow {
 
 
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {
-		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
-		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
-		// Integration of the flat plate term in eq4.4 results in the equivalent of AR=1, without the correction
-		// for the elliptic nature of the plate.
-		double a = wing.semispan();
-		double b = wing.semichord(0.);
-		if (a < b) { std::swap(a, b); }
-		double added_mass = a * b * b * HBTK::Constants::pi() * 4. / 3.;
-		double ratio = a / b;
-		// Linear interpolation of correction for ellipse from circle.
-		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 4., 6., 8.19, 10.34, 14.30, 10000. }; // To inf really.
-		std::vector<double> known_coeffs = { 0.637, 0.748, 0.826, 0.900, 0.933, 0.964, 0.978, 0.985, 0.991, 1.000 };
-		double coeff = 0;
-		int lower_known = -1;
-		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
-			if (ratio >= known_ratios[idx]) {
-				lower_known = idx;
-			}
-		}
-		if (lower_known == 0) { coeff = known_ratios[0]; } // == 1.
-
-		double fraction = (ratio - known_ratios[lower_known]) / (known_ratios[lower_known + 1] - known_ratios[lower_known]);
-		coeff = (known_coeffs[lower_known + 1] - known_coeffs[lower_known]) * fraction + known_coeffs[lower_known];
-		added_mass *= 2 * coeff;
-		return added_mass;
+		return mFlow::elliptic_added_mass_coefficient(wing.span, wing.chord(0));
 	}
 
 
 	double Sclavounos1987::rectangular_added_mass_coefficient()
 	{
-		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
-		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
-		double a = wing.span;
-		double b = wing.chord(0.);
-		if (a < b) { std::swap(a, b); }
-		double added_mass = a * b * b * HBTK::Constants::pi() / 4.;
-		double ratio = a / b;
-		// Linear interpolation of correction for ellipse from circle.
-		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 10000. }; // To inf really.
-		std::vector<double> known_coeffs = { 0.478, 0.680, 0.840, 1.000, 1.000 };
-		double coeff = 0;
-		int lower_known = -1;
-		for (int idx = 0; idx < (int)known_ratios.size(); idx++) {
-			if (ratio >= known_ratios[idx]) {
-				lower_known = idx;
-			}
-		}
-		if (lower_known == 0) { coeff = known_ratios[0]; } // == 1.
-
-		double fraction = (ratio - known_ratios[lower_known]) / (known_ratios[lower_known + 1] - known_ratios[lower_known]);
-		coeff = (known_coeffs[lower_known + 1] - known_coeffs[lower_known]) * fraction + known_coeffs[lower_known];
-		added_mass *= 2 * coeff;
-		return added_mass;
+		return mFlow::rectangular_added_mass_coefficient(wing.span, wing.chord(0));
 	}
 
 
@@ -575,6 +560,41 @@ namespace mFlow {
 		assert(HBTK::check_finite(term_1));
 		assert(HBTK::check_finite(term_2));
 		return term_1 + HBTK::Constants::i() * term_2;
+	}
+
+	double elliptic_added_mass_coefficient(double span, double max_chord)
+	{
+		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
+		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
+		// Integration of the flat plate term in eq4.4 results in the equivalent of AR=1, without the correction
+		// for the elliptic nature of the plate.
+		double a = span / 2;
+		double b = max_chord / 2;
+		if (a < b) { std::swap(a, b); }
+		double added_mass = a * b * b * HBTK::Constants::pi() * 4. / 3.;
+		double ratio = a / b;
+		// Linear interpolation of correction for ellipse from circle.
+		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 4., 6., 8.19, 10.34, 14.30, 10000. }; // To inf really.
+		std::vector<double> known_coeffs = { 0.637, 0.748, 0.826, 0.900, 0.933, 0.964, 0.978, 0.985, 0.991, 1.000 };
+
+		added_mass *= 2 * HBTK::linear_interpolate(known_ratios, known_coeffs, ratio);
+		return added_mass;
+	}
+
+	double rectangular_added_mass_coefficient(double span, double chord)
+	{
+		// Reference: http://brennen.caltech.edu/fluidbook/basicfluiddynamics/unsteadyflows/addedmass/valuesoftheaddedmass.pdf
+		// (Unable to find any closed form solution (even in Hydrodynamics(Lamb) 2nd Ed.)
+		double a = span;
+		double b = chord;
+		if (a < b) { std::swap(a, b); }
+		double added_mass = a * b * b * HBTK::Constants::pi() / 4.;
+		double ratio = a / b;
+		// Linear interpolation of correction for ellipse from circle.
+		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 10000. }; // To inf really.
+		std::vector<double> known_coeffs = { 0.478, 0.680, 0.840, 1.000, 1.000 };
+		added_mass *= 2 * HBTK::linear_interpolate(known_ratios, known_coeffs, ratio);
+		return added_mass;
 	}
 
 }

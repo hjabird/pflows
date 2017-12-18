@@ -41,6 +41,11 @@ namespace mFlow {
 
 		double reduced_frequency();		// k -> (omega c) / (2 V_infty)
 
+		// Resulting coefficient of lift at t=0 for quasi-steady thin aerofoil theory.
+		std::complex<double> qstat_unsteady();
+		// Resulting coefficient of lift at t=0 for Theodorsen's theory.
+		std::complex<double> theodorsen_unsteady();
+
 		// Complex amplitude of pitch and plunge functions. Should be multiplied
 		// through by exp(i omega t) and real part is taken to get actual value.
 		std::complex<double> plunge_amp();
@@ -50,8 +55,6 @@ namespace mFlow {
 		std::complex<double> dpitch_dt_amp();
 		std::complex<double> ddpitch_ddt_amp();
 
-		std::complex<double> qstat_unsteady();
-		std::complex<double> theodorsen_unsteady();
 	};
 }
 

@@ -33,11 +33,12 @@ namespace mFlow {
 
 		double leading_edge_X(const double & Y_Global);
 		double trailing_edge_X(const double & Y_Global);
-		double midchord_X(const double & Y_Global);
 		double chord(const double & Y_Global);
 		double semichord(const double & Y_Global);
-		double cos_angle_between_midchord_and_edge(double Y_global);
-		double radius_of_midchord(double Y_global);
+
+		double midchord_X(const double & Y_Global);
+		double midchord_sweep_angle(double Y_global);
+		double midchord_radius_of_curvature(double Y_global);
 
 		double span;
 		const double semispan();
