@@ -36,7 +36,7 @@ namespace mFlow {
 		double plunge_amplitude;
 		double pitch_amplitude;
 		double phase_offset;		// In radians
-		double pitch_location;		// As a fraction of chord from leading edge
+		double pitch_location;		// Between -1, 1 as distance from LE.
 		double semichord;
 
 		double reduced_frequency();		// k -> (omega c) / (2 V_infty)
@@ -46,6 +46,9 @@ namespace mFlow {
 		// Resulting coefficient of lift at t=0 for Theodorsen's theory.
 		std::complex<double> theodorsen_unsteady();
 
+
+
+	protected:
 		// Complex amplitude of pitch and plunge functions. Should be multiplied
 		// through by exp(i omega t) and real part is taken to get actual value.
 		std::complex<double> plunge_amp();

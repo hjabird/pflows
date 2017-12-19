@@ -49,7 +49,7 @@ double mFlow::Guermond1990::local_downwash(double y)
 		HBTK::central_difference_O1A2([&](double y) { return Gamma_0(y); }, y) / (2 * pi)) *
 		(log(c / A) - 2 * log(2) + 1 - 2 * K);
 	double term_12 = (-2 / c) * (moment_about_midchord(y) / (4 * pi * r) + sin(Lambda) *
-		HBTK::central_difference_O1A2([&](double y) { return moment_about_midchord(y); }, y) / (2 * pi);
+		HBTK::central_difference_O1A2([&](double y) { return moment_about_midchord(y); }, y) / (2 * pi));
 	double term_13 = downwash(y);
 	double term_14 = (Gamma_0(y) / (4 * pi * r)) * (1 - pow(tan(Lambda), 2) - log(2 / pow(cos(Lambda), 2)));
 	double term_15 = (HBTK::central_difference_O1A2([&](double y) { return Gamma_0(y); }, y) / (2 * pi))

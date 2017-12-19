@@ -501,8 +501,9 @@ namespace mFlow {
 			auto semichord = wing.semichord(y);
 			auto F_5 = F(y);
 			auto C = Common::theodorsen_function((omega / U) * semichord);
-			auto circulation = semichord * (C + 1.) + HBTK::Constants::i() * F_5 + U / omega;
-			return HBTK::Constants::pi() * semichord * sin(theta) * circulation;
+			auto circulation = semichord + (2 * U / (HBTK::Constants::i() * omega) + 2. * F_5);
+			auto added_mass = semichord * (1. + HBTK::Constants::i() * omega * F_5 / U);
+			return HBTK::Constants::pi() * semichord * sin(theta) * (C * circulation + added_mass);
 		};
 
 		term_11 = 4. * wing.semispan() / wing.area();
