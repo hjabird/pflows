@@ -76,6 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\Users\2336704b\source\repos\boost;C:\Users\2336704b\source\repos\HBTK\HBTK\include;C:\Users\2336704b\source\repos\Eigen;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -177,7 +178,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\HBTK\HBTK\HBTK.vcxproj">
-      <Project>{0f21df6f-7069-43c7-8161-42347bdfdf9a}</Project>
+      <Project>{331fdc98-7c40-31e5-abfa-ac6454659c82}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

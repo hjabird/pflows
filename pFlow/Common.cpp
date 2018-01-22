@@ -24,8 +24,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <boost/math/special_functions/hankel.hpp>
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/special_functions/expint.hpp>
-#include "../../HBTK/HBTK/Constants.h"
-#include "../../HBTK/HBTK/Checks.h"
+#include <HBTK/Constants.h>
+#include <HBTK/Checks.h>
 
 namespace mFlow {
 	namespace Common {

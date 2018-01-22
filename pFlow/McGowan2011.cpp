@@ -23,7 +23,7 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
-#include "../../HBTK/HBTK/Constants.h"
+#include <HBTK/Constants.h>
 
 #include "Common.h"
 

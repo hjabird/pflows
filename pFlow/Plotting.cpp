@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "Plotting.h"
 
-#include "../../HBTK/HBTK/Constants.h"
+#include <HBTK/Constants.h>
 
 void mFlow::Plotting::plot_complex_over_period(std::complex<double> plot_variable, double oscillation_period, HBTK::GnuPlot & plot, std::string line_spec)
 {

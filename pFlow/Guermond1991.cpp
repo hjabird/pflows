@@ -24,10 +24,10 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <cmath>
 
-#include "../../HBTK/HBTK/GaussLegendre.h"
-#include "../../HBTK/HBTK/Integrators.h"
-#include "../../HBTK/HBTK/Remaps.h"
-#include "../../HBTK/HBTK/Constants.h"
+#include <HBTK/GaussLegendre.h>
+#include <HBTK/Integrators.h>
+#include <HBTK/Remaps.h>
+#include <HBTK/Constants.h>
 
 #include "Common.h"
 

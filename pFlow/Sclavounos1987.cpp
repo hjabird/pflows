@@ -29,14 +29,14 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <functional>
 #include <tuple>
 
-#include "../../HBTK/HBTK/Constants.h"
-#include "../../HBTK/HBTK/GaussLegendre.h"
-#include "../../HBTK/HBTK/Remaps.h"
-#include "../../HBTK/HBTK/Integrators.h"
-#include "../../HBTK/HBTK/Checks.h"
-#include "../../HBTK/HBTK/Generators.h"
-#include "../../HBTK/HBTK/GnuPlot.h"
-#include "../../HBTK/HBTK/Interpolators.h"
+#include <HBTK/Constants.h>
+#include <HBTK/GaussLegendre.h>
+#include <HBTK/Remaps.h>
+#include <HBTK/Integrators.h>
+#include <HBTK/Checks.h>
+#include <HBTK/Generators.h>
+#include <HBTK/GnuPlot.h>
+#include <HBTK/Interpolators.h>
 
 #include <Eigen/LU>
 

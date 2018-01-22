@@ -22,7 +22,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
-#include "../../HBTK/HBTK/Constants.h"
+#include <HBTK/Constants.h>
 
 void mFlow::WingGenerators::elliptic(WingProjectionGeometry & wing_obj, double span, double aspect_ratio)
 {

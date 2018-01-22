@@ -27,9 +27,9 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 
 
-#include "../../HBTK/HBTK/Integrators.h"
-#include "../../HBTK/HBTK/NumericalDifferentiation.h"
-#include "../../HBTK/HBTK/Checks.h"
+#include <HBTK/Integrators.h>
+#include <HBTK/NumericalDifferentiation.h>
+#include <HBTK/Checks.h>
 
 namespace mFlow {
 	WingProjectionGeometry::WingProjectionGeometry()

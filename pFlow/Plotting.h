@@ -22,7 +22,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
 #include <complex>
-#include "../../HBTK/HBTK/GnuPlot.h"
+#include <HBTK/GnuPlot.h>
 
 namespace mFlow {
 	namespace Plotting{

@@ -3,11 +3,11 @@
 #include "Guermond1990.h"
 
 #include <cassert>
-#include "../../HBTK/HBTK/NumericalDifferentiation.h"
-#include "../../HBTK/HBTK/GaussLegendre.h"
-#include "../../HBTK/HBTK/Integrators.h"
-#include "../../HBTK/HBTK/Constants.h"
-#include "../../HBTK/HBTK/Checks.h"
+#include <HBTK/NumericalDifferentiation.h>
+#include <HBTK/GaussLegendre.h>
+#include <HBTK/Integrators.h>
+#include <HBTK/Constants.h>
+#include <HBTK/Checks.h>
 
 
 mFlow::Guermond1990::Guermond1990()
