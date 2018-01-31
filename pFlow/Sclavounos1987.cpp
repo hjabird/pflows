@@ -23,20 +23,20 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
-#include <array>
 #include <algorithm>
-#include <numeric>
+#include <array>
 #include <functional>
+#include <numeric>
 #include <tuple>
 
+#include <HBTK/Checks.h>
 #include <HBTK/Constants.h>
 #include <HBTK/GaussLegendre.h>
-#include <HBTK/Remaps.h>
-#include <HBTK/Integrators.h>
-#include <HBTK/Checks.h>
 #include <HBTK/Generators.h>
 #include <HBTK/GnuPlot.h>
+#include <HBTK/Integrators.h>
 #include <HBTK/Interpolators.h>
+#include <HBTK/Remaps.h>
 
 #include <Eigen/LU>
 
@@ -520,6 +520,42 @@ namespace mFlow {
 		return term_1;
 	}
 
+
+	std::complex<double> Sclavounos1987::compute_equivalent_pitch(double pitch_axis_offset)
+	{
+		assert(j == 3);
+		std::complex<double> theta;
+		
+		auto plunge_integrand = [&](double y)->std::complex<double> {
+			double l = wing.semichord(y);
+			std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);
+			std::complex<double> inner = C + (HBTK::Constants::i() * omega * l / (2 * U));
+			std::complex<double> outer = C * F(y);
+			return 2*l * (inner - outer);
+		};
+		auto pitch_integrand = [&](double y)->std::complex<double> {
+			double l = wing.semichord(y);
+			std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);
+			std::complex<double> repeated = l / 2 + U / (HBTK::Constants::i() * omega);
+			std::complex<double> inner_1 = 2.0 * C * repeated + l;
+			std::complex<double> inner_2 = repeated * (2. * C + l * U / (HBTK::Constants::i() * omega)) * F(y);
+			return l * (inner_1 - inner_2);
+		};
+
+		const int n_points = 40;
+		auto quadrature = HBTK::gauss_legendre(n_points);
+		for (double &point : std::get<0>(quadrature)) point *= wing.semispan();
+		for (double &weight : std::get<1>(quadrature)) weight *= wing.semispan();
+		
+		std::complex<double> plunge_integral = HBTK::static_integrate(plunge_integrand,
+			std::get<0>(quadrature), std::get<1>(quadrature), n_points);
+		std::complex<double> pitch_integral = HBTK::static_integrate(pitch_integrand,
+			std::get<0>(quadrature), std::get<1>(quadrature), n_points);
+
+		assert(HBTK::check_finite(plunge_integral));
+		assert(HBTK::check_finite(pitch_integral));
+		return plunge_integral / (pitch_axis_offset * plunge_integral - pitch_integral);
+	}
 
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {
 		return mFlow::elliptic_added_mass_coefficient(wing.span, wing.chord(0));

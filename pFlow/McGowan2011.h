@@ -31,10 +31,10 @@ namespace mFlow {
 		McGowan2011();
 		~McGowan2011();
 
-		double frequency;			// omega
+		double frequency;			// omega (rad / s)
 		double free_stream_vel;		// V_infty
 		double plunge_amplitude;
-		double pitch_amplitude;
+		double pitch_amplitude;		// In radians
 		double phase_offset;		// In radians
 		double pitch_location;		// Between -1, 1 as distance from LE.
 		double semichord;

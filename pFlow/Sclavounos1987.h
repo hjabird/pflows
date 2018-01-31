@@ -22,10 +22,10 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
-#include <functional>
 #include <complex>
-#include <vector>
+#include <functional>
 #include <tuple>
+#include <vector>
 
 #include <Eigen/Dense>
 
@@ -70,6 +70,11 @@ namespace mFlow {
 		// Once a solution has been computed, the interaction term, F (see eq5.1, eq5.2) can be evaluated
 		// at any point on the lifthing line.
 		std::complex<double> F(double y);
+
+		// Compute the equivalent pitch coefficient for a heave coefficient of 1.
+		// The pitch axis can be offset (+ve distance downstream). Returns complex
+		// value representing magnitude and phase.
+		std::complex<double> compute_equivalent_pitch(double pitch_axis_offset);
 
 		// Returns the added mass coefficient for the wing on the assumption it is elliptic.
 		double elliptic_added_mass_coefficient();
