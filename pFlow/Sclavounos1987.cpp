@@ -527,19 +527,20 @@ namespace mFlow {
 		std::complex<double> theta;
 		
 		auto plunge_integrand = [&](double y)->std::complex<double> {
-			double l = wing.semichord(y);
-			std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);
-			std::complex<double> inner = C + (HBTK::Constants::i() * omega * l / (2 * U));
+			double k = omega * wing.semichord(y) / U;
+			std::complex<double> C = mFlow::Common::theodorsen_function(k);
+			std::complex<double> inner = C + HBTK::Constants::i() * k / 2.0;
 			std::complex<double> outer = C * F(y);
-			return 2*l * (inner - outer);
+			return 2. * (inner - outer);
 		};
 		auto pitch_integrand = [&](double y)->std::complex<double> {
-			double l = wing.semichord(y);
-			std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);
-			std::complex<double> repeated = l / 2 + U / (HBTK::Constants::i() * omega);
-			std::complex<double> inner_1 = 2.0 * C * repeated + l;
-			std::complex<double> inner_2 = repeated * (2. * C + l * U / (HBTK::Constants::i() * omega)) * F(y);
-			return l * (inner_1 - inner_2);
+			double k = omega * wing.semichord(y) / U;	// Chord reduced frequency.
+			std::complex<double> C = mFlow::Common::theodorsen_function(k);
+			std::complex<double> repeated = wing.semichord(y) / 2 + U / (HBTK::Constants::i() * omega);
+			std::complex<double> inner = 2.0 * C * repeated + wing.semichord(y);
+			std::complex<double> outer = repeated * (2. * C + wing.semichord(y) * U 
+				/ (HBTK::Constants::i() * omega)) * F(y);
+			return inner - outer;
 		};
 
 		const int n_points = 40;
