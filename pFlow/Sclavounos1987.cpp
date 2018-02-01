@@ -497,12 +497,12 @@ namespace mFlow {
 		std::complex<double> term_1, term_11, term_12;
 
 		auto integrand = [&](double theta) -> std::complex<double> {
-			auto y = wing.semispan() * cos(theta);
-			auto semichord = wing.semichord(y);
-			auto F_5 = F(y);
-			auto C = Common::theodorsen_function((omega / U) * semichord);
-			auto circulation = semichord + (2 * U / (HBTK::Constants::i() * omega) + 2. * F_5);
-			auto added_mass = semichord * (1. + HBTK::Constants::i() * omega * F_5 / U);
+			double y = wing.semispan() * cos(theta);
+			double semichord = wing.semichord(y);
+			std::complex<double> F_5 = F(y);
+			std::complex<double> C = Common::theodorsen_function((omega / U) * semichord);
+			std::complex<double> circulation = semichord + (2 * U / (HBTK::Constants::i() * omega) + 2. * F_5);
+			std::complex<double> added_mass = semichord * (1. + HBTK::Constants::i() * omega * F_5 / U);
 			return HBTK::Constants::pi() * semichord * sin(theta) * (C * circulation + added_mass);
 		};
 
@@ -521,41 +521,40 @@ namespace mFlow {
 	}
 
 
-	std::complex<double> Sclavounos1987::compute_equivalent_pitch(double pitch_axis_offset)
+	std::complex<double> Sclavounos1987::compute_equivalent_pitch_rectangular_wing(double pitch_axis_offset)
 	{
 		assert(j == 3);
-		std::complex<double> theta;
 		
-		auto plunge_integrand = [&](double y)->std::complex<double> {
-			double k = omega * wing.semichord(y) / U;
-			std::complex<double> C = mFlow::Common::theodorsen_function(k);
-			std::complex<double> inner = C + HBTK::Constants::i() * k / 2.0;
-			std::complex<double> outer = C * F(y);
-			return 2. * (inner - outer);
-		};
-		auto pitch_integrand = [&](double y)->std::complex<double> {
-			double k = omega * wing.semichord(y) / U;	// Chord reduced frequency.
-			std::complex<double> C = mFlow::Common::theodorsen_function(k);
-			std::complex<double> repeated = wing.semichord(y) / 2 + U / (HBTK::Constants::i() * omega);
-			std::complex<double> inner = 2.0 * C * repeated + wing.semichord(y);
-			std::complex<double> outer = repeated * (2. * C + wing.semichord(y) * U 
-				/ (HBTK::Constants::i() * omega)) * F(y);
-			return inner - outer;
-		};
-
 		const int n_points = 40;
 		auto quadrature = HBTK::gauss_legendre(n_points);
-		for (double &point : std::get<0>(quadrature)) point *= wing.semispan();
-		for (double &weight : std::get<1>(quadrature)) weight *= wing.semispan();
+		auto &points = quadrature.first;
+		auto &weights = quadrature.second;
+		for (int i = 0; i < n_points; i++) { HBTK::linear_remap(points[i], weights[i], -1., 1., -wing.semispan(), wing.semispan()); }
 		
-		std::complex<double> plunge_integral = HBTK::static_integrate(plunge_integrand,
-			std::get<0>(quadrature), std::get<1>(quadrature), n_points);
-		std::complex<double> pitch_integral = HBTK::static_integrate(pitch_integrand,
+		std::complex<double> F_integral = HBTK::static_integrate([&](double y) {return F(y); },
 			std::get<0>(quadrature), std::get<1>(quadrature), n_points);
 
-		assert(HBTK::check_finite(plunge_integral));
-		assert(HBTK::check_finite(pitch_integral));
-		return plunge_integral / (pitch_axis_offset * plunge_integral - pitch_integral);
+		double l = wing.semichord(0);
+		std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);
+		std::complex<double> plunge2d = 4.0 * wing.semispan() * (C + HBTK::Constants::i() * omega * l / (2 * U));
+		std::complex<double> plunge3d_correction = - 2.0 * C * F_integral;
+		std::complex<double> pitch2d = - 2.0 * wing.semispan() * (C * (l + 2 * U / (HBTK::Constants::i() * omega)) + l);
+		std::complex<double> pitch3d_correction = (l / 2 + U / (HBTK::Constants::i() * omega)) 
+			* (2.0 * C + l * U / (HBTK::Constants::i() * omega)) * F_integral;
+
+		//std::complex<double> plunge = plunge2d + plunge3d_correction;
+		//std::complex<double> pitch = pitch2d + pitch3d_correction;
+
+		//return plunge / ((pitch_axis_offset * plunge) + pitch);
+		std::complex<double> plunge = compute_lift_coeff_j3(rectangular_added_mass_coefficient());
+		auto mult = -(wing.semichord(0) / 2 + U / (HBTK::Constants::i() * omega));
+		auto swap_vorticity = m_solution;
+		m_solution *= mult;
+		j = 5;
+		std::complex<double> pitch = compute_lift_coeff_j5();
+		j = 3;
+		m_solution = swap_vorticity;
+		return plunge / pitch;
 	}
 
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {

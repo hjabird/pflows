@@ -35,14 +35,21 @@ namespace mFlow {
 	class Sclavounos1987
 	{
 	public:
-		Sclavounos1987();
-		~Sclavounos1987();
+
+		// STATIC FUNCTIONS (convenience)
 
 		// Get the lift against time for a single period of oscillation, for given amplitudes,
 		// phase offset of pitch against heave, frequency and wing geometry.
+		// pitch_amp, phase and freq are all radians based.
 		static  std::complex<double> conventional_lift_coefficient(double heave_amplitude, 
 			double pitch_amplitude, double phase_offset, double frequency, 
 			WingProjectionGeometry wing, double heave_added_mass_a33);
+
+
+		// MEMBER FUNCTIONS
+
+		Sclavounos1987();
+		~Sclavounos1987();
 
 		// Geometry definition
 		WingProjectionGeometry wing;
@@ -71,10 +78,11 @@ namespace mFlow {
 		// at any point on the lifthing line.
 		std::complex<double> F(double y);
 
-		// Compute the equivalent pitch coefficient for a heave coefficient of 1.
+		// Compute the equivalent pitch coefficient for a heave coefficient of 1 for a rectangular wing.
+		// You must have already called compute solution for j=3 on rectangular wing.
 		// The pitch axis can be offset (+ve distance downstream). Returns complex
 		// value representing magnitude and phase.
-		std::complex<double> compute_equivalent_pitch(double pitch_axis_offset);
+		std::complex<double> compute_equivalent_pitch_rectangular_wing(double pitch_axis_offset);
 
 		// Returns the added mass coefficient for the wing on the assumption it is elliptic.
 		double elliptic_added_mass_coefficient();
