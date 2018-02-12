@@ -540,21 +540,21 @@ namespace mFlow {
 		std::complex<double> plunge3d_correction = - 2.0 * C * F_integral;
 		std::complex<double> pitch2d = - 2.0 * wing.semispan() * (C * (l + 2 * U / (HBTK::Constants::i() * omega)) + l);
 		std::complex<double> pitch3d_correction = (l / 2 + U / (HBTK::Constants::i() * omega)) 
-			* (2.0 * C + l * U / (HBTK::Constants::i() * omega)) * F_integral;
+			* (2.0 * C + l * HBTK::Constants::i() * omega / U) * F_integral;
 
-		//std::complex<double> plunge = plunge2d + plunge3d_correction;
-		//std::complex<double> pitch = pitch2d + pitch3d_correction;
+		std::complex<double> plunge = plunge2d + plunge3d_correction;
+		std::complex<double> pitch = pitch2d + pitch3d_correction;
 
-		//return plunge / ((pitch_axis_offset * plunge) + pitch);
-		std::complex<double> plunge = compute_lift_coeff_j3(rectangular_added_mass_coefficient());
-		auto mult = -(wing.semichord(0) / 2 + U / (HBTK::Constants::i() * omega));
-		auto swap_vorticity = m_solution;
-		m_solution *= mult;
-		j = 5;
-		std::complex<double> pitch = compute_lift_coeff_j5();
-		j = 3;
-		m_solution = swap_vorticity;
-		return plunge / pitch;
+		return plunge / ((pitch_axis_offset * plunge) + pitch);
+		//std::complex<double> plunge = compute_lift_coeff_j3(rectangular_added_mass_coefficient());
+		//auto mult = -(wing.semichord(0) / 2 + U / (HBTK::Constants::i() * omega));
+		//auto swap_vorticity = m_solution;
+		//m_solution *= mult;
+		//j = 5;
+		//std::complex<double> pitch = compute_lift_coeff_j5();
+		//j = 3;
+		//m_solution = swap_vorticity;
+		//return plunge / pitch;
 	}
 
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {

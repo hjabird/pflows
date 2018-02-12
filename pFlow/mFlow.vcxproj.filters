@@ -48,6 +48,9 @@
     <ClInclude Include="Guermond1990.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Yan2014.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -75,6 +78,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Guermond1990.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Yan2014.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
