@@ -28,6 +28,9 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <functional>
 #include <vector>
 
+#include "HBTK\StructuredMeshBlock3D.h"
+#include "HBTK\StructuredValueBlockND.h"
+
 namespace mFlow {
 	class Yan2014
 	{
@@ -46,20 +49,28 @@ namespace mFlow {
 		std::function<double(double)> foil_AoA;
 		std::function<double(double)> foil_dAoAdt;
 		
+		double time;
+		double delta_t;
+		void advance_one_step();
+
 		// A representation of the vortex particles
 		struct vortex_particle {
-			double X, Z;	// Global cartesian coordinate
+			double X, Z;			// Global cartesian coordinate
 			std::complex<double> x; // Foil eta plane coordinate
-			double vX, vZ;	// Global velocities.
-			double vorticity;	// vorticity of the particle.
+			double vX, vZ;			// Global velocities.
+			double vorticity;		// vorticity of the particle.
 		};
-		std::vector<vortex_particle> m_vortex_particles;
+		std::vector<vortex_particle> m_vortex_particles;	// Vortex particle array. 
+		int number_of_particles() const;					// Number of particles
 
+		HBTK::StructuredMeshBlock3D get_foil_location();
+		HBTK::StructuredMeshBlock3D get_3d_vortex_locations();
+		HBTK::StructuredValueBlockND<3, double> get_vorticities();
 
 	private:
-		double particle_arg_eta_plain(const vortex_particle & particle);
-		void compute_eta_plane_velocities(double time);
-		void update_eta_plane_vortex_particle_coordinates(double time);
+		void compute_eta_plane_velocities();
+		void update_eta_plane_vortex_particle_coordinates();
+		void forward_euler_convection();
 	};
 } // End mFlow
 

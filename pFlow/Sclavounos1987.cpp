@@ -527,12 +527,8 @@ namespace mFlow {
 		
 		const int n_points = 40;
 		auto quadrature = HBTK::gauss_legendre(n_points);
-		auto &points = quadrature.first;
-		auto &weights = quadrature.second;
-		for (int i = 0; i < n_points; i++) { HBTK::linear_remap(points[i], weights[i], -1., 1., -wing.semispan(), wing.semispan()); }
-		
-		std::complex<double> F_integral = HBTK::static_integrate([&](double y) {return F(y); },
-			std::get<0>(quadrature), std::get<1>(quadrature), n_points);
+		quadrature.linear_remap(-wing.semispan(), wing.semispan());
+		std::complex<double> F_integral = quadrature.integrate([&](double y) {return F(y); });
 
 		double l = wing.semichord(0);
 		std::complex<double> C = mFlow::Common::theodorsen_function(omega * l / U);

@@ -90,8 +90,7 @@ double mFlow::Guermond1990::downwash_integral1(double y)
 		return term_1 * term_2;
 	};
 	auto quad = HBTK::gauss_legendre(20);
-	integral = HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad),
-		std::get<0>(quad).size());
+	integral = quad.integrate(integrand);
 	assert(HBTK::check_finite(integral));
 	return integral;
 }
@@ -117,9 +116,7 @@ double mFlow::Guermond1990::downwash_integral2(double y)
 		return aux_downwash_function(phi) - static_aux_term - (phi - y) * static_aux_derivative
 			/ ((phi - y) * abs(phi - y));
 	};
-	term_4 = -1. * HBTK::static_integrate(integrand, std::get<0>(quad), std::get<1>(quad),
-		std::get<0>(quad).size());
-
+	term_4 = -1. * quad.integrate(integrand);
 	assert(HBTK::check_finite(term_4));
 	return term_1 + term_2 + term_3 + term_4;
 }
@@ -139,8 +136,7 @@ double mFlow::Guermond1990::downwash_integral3(double y)
 	auto integrand = [&](double psi) {
 		return (aux_downwash_function(psi) - precomputed_downwash_aux_at_y) / abs(psi - y);
 	};
-	term_3 = -1 * HBTK::static_integrate(integrand, std::get<0>(quadrature), 
-		std::get<1>(quadrature), std::get<0>(quadrature).size());
+	term_3 = -1 * quadrature.integrate(integrand);
 
 	return term_1 + term_2 + term_3;
 }
