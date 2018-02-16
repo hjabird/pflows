@@ -42,8 +42,6 @@ namespace mFlow {
 		double free_stream_velocity;
 		double semichord;
 		double pitch_location; // in [-1, 1]. -1->LE, 1->TE
-		std::function<double(double)> foil_X;
-		std::function<double(double)> foil_dXdt;
 		std::function<double(double)> foil_Z;
 		std::function<double(double)> foil_dZdt;
 		std::function<double(double)> foil_AoA;
@@ -68,9 +66,20 @@ namespace mFlow {
 		HBTK::StructuredValueBlockND<3, double> get_vorticities();
 
 	private:
+		// Compute the velocities.
 		void compute_eta_plane_velocities();
+
+		// Add a new particle.
+		void add_new_vortex_particle();
+
 		void update_eta_plane_vortex_particle_coordinates();
 		void forward_euler_convection();
+
+		// Coordinate mappings.
+		std::complex<double> map_inertial_to_foil(double X, double Y);
+		std::complex<double> map_foil_to_eta(std::complex<double> X);
+		std::complex<double> map_eta_to_foil(std::complex<double> eta);
+		std::complex<double> map_foil_to_real(std::complex<double> eta);
 	};
 } // End mFlow
 

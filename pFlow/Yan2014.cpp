@@ -30,6 +30,7 @@ void mFlow::Yan2014::advance_one_step()
 	assert(foil_dZdt);
 	assert(HBTK::check_finite(pitch_location));
 	update_eta_plane_vortex_particle_coordinates();
+	add_new_vortex_particle();
 	compute_eta_plane_velocities();
 	forward_euler_convection();
 }
@@ -82,18 +83,6 @@ HBTK::StructuredValueBlockND<3, double> mFlow::Yan2014::get_vorticities()
 
 void mFlow::Yan2014::compute_eta_plane_velocities()
 {
-	// Add new particle at trailing edge.
-	vortex_particle te_particle;
-	std::complex<double> te_pos_eta = semichord / 2;
-	std::complex<double> te_pos = te_pos_eta + pow(semichord, 2) / (4. * te_pos_eta);
-	te_pos *= exp(-HBTK::Constants::i() * foil_AoA(time));
-	te_pos += HBTK::Constants::i() * foil_Z(time);
-	te_particle.X = te_pos.real() +(1. / 3.) * (te_pos.real() - m_vortex_particles[(int)m_vortex_particles.size() - 1].X);
-	te_particle.Z = te_pos.imag() +(1. / 3.) * (te_pos.imag() - m_vortex_particles[(int)m_vortex_particles.size() - 1].Z);
-	std::complex<double> te_pos_tr = te_particle.X + HBTK::Constants::i() * te_particle.Z;
-	te_particle.x = (te_pos_tr + sqrt(te_pos_tr * te_pos_tr - pow(semichord, 2))) / 2.0;
-	te_particle.vorticity = 0.0;
-	m_vortex_particles.emplace_back(te_particle);
 	int n_particles = (int) m_vortex_particles.size();
 
 	std::cout << "Particles: (" << n_particles << ")\n";
@@ -110,6 +99,7 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 	vtan.resize(n_particles);	// Tangential velocity of particle
 	for (int i = 0; i < n_particles; i++) {
 		rad[i] = abs(m_vortex_particles[i].x);
+		assert(rad[i] > semichord / 2);
 		arg[i] = std::arg(m_vortex_particles[i].x);
 		vtan[i] = 0;
 		vrad[i] = 0;
@@ -121,25 +111,30 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 	// to particle that was last convected from the trailing edge.
 	{
 		double accumulator = 0.0;
+		double total_vorticity_acc = 0;
 		for (int i = 0; i < n_particles - 1; i++) {
 			double rj = rad[i];
 			double pj = arg[i];
 			double b = semichord;
 			double t1 = m_vortex_particles[i].vorticity / (2 * HBTK::Constants::pi() * b);
-			double t2d = rj * rj - b * b / 4;
-			double t2n = rj * rj - rj * b * cos(pj) + b * b / 4;
-			accumulator += t1 * t2n / t2d;
+			total_vorticity_acc += m_vortex_particles[i].vorticity;
+			double t2n = rj * rj - b * b / 4;
+			double t2d = rj * rj - rj * b * cos(pj) + b * b / 4;
+			double vortex_contribution = t1 * t2n / t2d;
+			accumulator += vortex_contribution;
 		}
 		accumulator += free_stream_velocity * sin(foil_AoA(time))
 			+ foil_dZdt(time) * cos(foil_AoA(time))
-			- (0.5 + pitch_location) * semichord * foil_dAoAdt(time);
-		assert(m_vortex_particles[n_particles - 1].vorticity == 0);
-		double rn = rad[n_particles - 1];
-		double pn = arg[n_particles - 1];
+			+ (0.5 + pitch_location) * semichord * foil_dAoAdt(time);
+		assert(m_vortex_particles.back().vorticity == 0);
+		double rn = rad.back();
+		double pn = arg.back();
 		double mult = 2. * HBTK::Constants::pi() * semichord *
 			((rn * rn - rn * semichord * cos(pn) + pow(semichord / 2., 2)) /
 				rn * rn - pow(semichord / 2, 2));
-			m_vortex_particles[n_particles - 1].vorticity = - accumulator * mult;
+		m_vortex_particles.back().vorticity = accumulator * mult;
+		total_vorticity_acc -= accumulator * mult;
+		std::cout << "System vorticity: " << total_vorticity_acc << ".\n";
 	}
 
 	// The circulatory influence on the vortex particles.
@@ -152,11 +147,11 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 		// and inducing particle repectively.
 		auto kernel = [=](double pj, double pk, double rj, double rk, double Gk)->std::pair<double, double> {
 			double b2 = pow(semichord, 2); // Semispan squared.
-			double den1 = rj * rj - 2 * rj * b2 * cos(pj - pk) / (4 * rk) + pow(b2 / (4 * rk), 2);
-			double den2 = rj * rj - 2 * rj * rk * cos(pj - pk) + rk * rk;
+			double den1 = pow(rj * rj - 2 * rj * b2 * cos(pj - pk) / (4 * rk) + pow(b2 / (4 * rk), 2), 2);
+			double den2 = pow(rj * rj - 2 * rj * rk * cos(pj - pk) + rk * rk, 2);
 			// Eq30a
 			double rterm_1 = -(Gk * sin(pj - pk)) / (2 * HBTK::Constants::pi());
-			double rterm_2 = rj / den2 - b2 / (4 * rk * den1);
+			double rterm_2 = rj / den2 - (b2 / (4 * rk)) / den1;
 			// Eq30b
 			double tterm_1 = -Gk / (4 * HBTK::Constants::pi() * rj);
 			double tterm_21 = (rj*rj - pow(b2 / (4 * rk), 2)) / den1;
@@ -167,13 +162,14 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 
 		// Compute the convective effects on particles.
 		for (int i = 0; i < n_particles; i++) {
+			double pi, ri, Gi;
+			pi = arg[i];
+			ri = rad[i];
+			Gi = m_vortex_particles[i].vorticity;
 			for (int j = 0; j < i; j++) {
-				double pi, pj, ri, rj, Gi, Gj, vr, vt;
-				pi = arg[i];
+				double pj, rj, Gj, vr, vt;
 				pj = arg[j];
-				ri = rad[i];
 				rj = rad[j];
-				Gi = m_vortex_particles[i].vorticity;
 				Gj = m_vortex_particles[j].vorticity;
 				std::tie(vr, vt) = kernel(pi, pj, ri, rj, Gj);
 				vrad[i] += vr;
@@ -181,7 +177,11 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 				std::tie(vr, vt) = kernel(pj, pi, rj, ri, Gi);
 				vrad[j] += vr;
 				vtan[j] += vt;
+
 			}
+			// Additionally, the particles bound vorticity on its wake
+			// vortex pair:
+			// vtan[i] -= 2 * ri * Gi / (HBTK::Constants::pi() * (4 * ri * ri - pow(semichord, 2)));
 		}
 		assert(HBTK::check_finite(vrad));
 		assert(HBTK::check_finite(vtan));
@@ -227,13 +227,44 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 		assert(HBTK::check_finite(X_dot));
 		assert(HBTK::check_finite(Z_dot));
 
-		m_vortex_particles[i].vX = X_dot + free_stream_velocity - 
+		m_vortex_particles[i].vX = X_dot + free_stream_velocity + 
 			pitch_location * semichord * foil_dAoAdt(time) * sin(alpha);
-		m_vortex_particles[i].vZ = Z_dot + foil_dZdt(time) -
+		m_vortex_particles[i].vZ = Z_dot + foil_dZdt(time) +
 			pitch_location * semichord * foil_dAoAdt(time) * cos(alpha);
 	}
 
 	return;
+}
+
+void mFlow::Yan2014::add_new_vortex_particle()
+{
+
+	vortex_particle te_particle, last_shed_particle;
+	if (m_vortex_particles.size() == 0) {
+		std::complex<double> pos_guess = semichord + delta_t * free_stream_velocity * 0.5;
+		pos_guess = map_foil_to_real(pos_guess);
+		last_shed_particle.X = pos_guess.real();
+		last_shed_particle.Z = pos_guess.imag();
+	}
+	else {
+		last_shed_particle = m_vortex_particles.back();
+	}
+
+
+	std::complex<double> te_pos_eta = semichord / 2;
+	std::complex<double> pos = map_eta_to_foil(te_pos_eta);
+	pos = map_foil_to_real(pos);
+	pos += (1. / 3.) * (last_shed_particle.X - pos.real());
+	pos += HBTK::Constants::i() *(1. / 3.) * (last_shed_particle.Z - pos.imag());
+	te_particle.X = pos.real();
+	te_particle.Z = pos.imag();
+	pos = map_inertial_to_foil(pos.real(), pos.imag());
+	pos = map_foil_to_eta(pos);
+	te_particle.x = pos;
+	te_particle.vorticity = 0;
+	te_particle.vX = 0;
+	te_particle.vZ = 0;
+	m_vortex_particles.emplace_back(te_particle);
 }
 
 void mFlow::Yan2014::update_eta_plane_vortex_particle_coordinates()
@@ -243,11 +274,8 @@ void mFlow::Yan2014::update_eta_plane_vortex_particle_coordinates()
 	sa = sin(foil_AoA(time));
 	h = foil_Z(time);
 	for (auto & particle : m_vortex_particles) {
-		double local_X, local_Z;
-		local_X = particle.X * ca + (particle.Z - h) * -sa;
-		local_Z = particle.X * sa + (particle.Z - h) * ca;
-		std::complex<double> X = local_X + HBTK::Constants::i() * local_Z;
-		particle.x = X / 2.0 + sqrt(X * X - pow(semichord, 2)/2.0); // We can do this because we've a plate.
+		std::complex<double> x = map_inertial_to_foil(particle.X, particle.Z);
+		particle.x = map_foil_to_eta(x);
 	}
 	return;
 }
@@ -261,4 +289,31 @@ void mFlow::Yan2014::forward_euler_convection()
 		particle.X += particle.vX * delta_t;
 		particle.Z += particle.vZ * delta_t;
 	}
+}
+
+std::complex<double> mFlow::Yan2014::map_inertial_to_foil(double X, double Y)
+{
+	std::complex<double> foil_coord = 0;
+	foil_coord = HBTK::Constants::i() * (Y - foil_Z(time));
+	foil_coord += X;
+	foil_coord *= exp(HBTK::Constants::i() * foil_AoA(time));
+	return foil_coord;
+}
+
+std::complex<double> mFlow::Yan2014::map_foil_to_eta(std::complex<double> X)
+{
+	std::complex<double> eta = (X + sqrt(X*X - semichord * semichord)) / 2.;
+	return eta;
+}
+
+std::complex<double> mFlow::Yan2014::map_eta_to_foil(std::complex<double> eta)
+{
+	return eta + semichord * semichord / (4.0 * eta);
+}
+
+std::complex<double> mFlow::Yan2014::map_foil_to_real(std::complex<double> x)
+{
+	x *= exp(- HBTK::Constants::i() * foil_AoA(time));
+	x += HBTK::Constants::i() * foil_Z(time);
+	return x;
 }
