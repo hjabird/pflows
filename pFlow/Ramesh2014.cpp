@@ -56,11 +56,15 @@ void mFlow::Ramesh2014::initialise()
 			__FILE__ ":"  + std::to_string(__LINE__));
 	}
 	m_fourier_terms = HBTK::uniform(0.0, number_of_fourier_terms);
+	time -= delta_t;
+	compute_fourier_terms();
+	time += delta_t;
+	m_previous_fourier_terms = m_fourier_terms;
 
 	// Timestep of zero goes nowhere!
-	if (delta_t == 0) {
+	if (delta_t <= 0) {
 		throw std::domain_error("delta_t: "
-			"Time step for Ramesh2014 method must not be equal to zero. " __FILE__
+			"Time step for Ramesh2014 method must be more than zero. " __FILE__
 			":" + std::to_string(__LINE__));
 	}
 
@@ -350,6 +354,120 @@ std::pair<double, double> mFlow::Ramesh2014::foil_velocity(double eta)
 	vy += radial_vel * sin(foil_AoA(time));
 	vx = radial_vel * cos(foil_AoA(time));
 	return std::make_pair(vx, vy);
+}
+
+double mFlow::Ramesh2014::aerofoil_leading_edge_suction_force(double density)
+{
+	assert(HBTK::check_finite(m_fourier_terms));
+	return pow(free_stream_velocity, 2) * HBTK::Constants::pi() *
+		density * 2 * semichord * pow(m_fourier_terms[0], 2);
+}
+
+double mFlow::Ramesh2014::aerofoil_normal_force(double density)
+{
+	assert(HBTK::check_finite(m_fourier_terms));
+	double alpha = foil_AoA(time);
+	double alpha_dot = foil_dAoAdt(time);
+	double h_dot = foil_dZdt(time);
+	std::vector<double> fourier_derivatives = rate_of_change_of_fourier_terms();
+
+	double term_1, term_2,
+		term_11, term_12, term_121, term_122,
+		term_1211, term_1212;
+
+	term_11 = density * HBTK::Constants::pi() * semichord * 2.0 * free_stream_velocity;
+	term_1211 = free_stream_velocity * cos(alpha) + h_dot * sin(alpha);
+	term_1212 = m_fourier_terms[0] + m_fourier_terms[1] / 2;
+	term_121  = term_1211 * term_1212;
+	term_122 = 0;/*2 * semichord * (
+		(3. / 4) * fourier_derivatives[0]
+		+ (1. / 4) * fourier_derivatives[1]
+		+ (1. / 8) * fourier_derivatives[2]);*/
+	term_12 = term_121 + term_122;
+	term_1 = term_11 * term_12;
+	assert(HBTK::check_finite(term_1));
+
+	// term_2 includes an integral.
+	auto integrand = [&](double local_pos)->double {
+		double vort_den = vorticity_density(local_pos);
+		double x, y;
+		std::tie(x, y) = foil_coordinate(local_pos);
+		double u, w; 
+		std::tie(u, w) = get_particle_induced_velocity(x, y);
+		double tangential_velocity = u * cos(alpha) + w * sin(alpha);
+		return tangential_velocity * vort_den;
+	};
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
+	term_2 = quad.integrate(integrand) * semichord * density;
+	assert(HBTK::check_finite(term_2));
+	return term_1 + term_2;
+}
+
+double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
+{
+	assert(HBTK::check_finite(density));
+	assert(HBTK::check_finite(m_fourier_terms));
+	double alpha = foil_AoA(time);
+	double alpha_dot = foil_dAoAdt(time);
+	double h_dot = foil_dZdt(time);
+	std::vector<double> fourier_derivatives = rate_of_change_of_fourier_terms();
+
+	double term_1, term_2, term_3,
+		term_21, term_22, term_211, term_212;
+	term_1 = aerofoil_normal_force(density) * (1 + pitch_location) * semichord;
+	term_211 = free_stream_velocity * cos(alpha) + h_dot * sin(alpha);
+	term_212 = 0.25 * m_fourier_terms[0] + 0.25 * m_fourier_terms[1]
+		- 0.25 * m_fourier_terms[2];
+	term_21 = term_211 * term_212;
+	term_22 = 0; /*semichord * 2 * (
+		(7. / 16) * fourier_derivatives[0]
+		+ (11. / 64) * fourier_derivatives[1]
+		+ (1. / 16) * fourier_derivatives[2]
+		- (1. / 64) * fourier_derivatives[3]) ;*/
+	term_2 = (term_21 + term_22) * density * 4 * 
+		free_stream_velocity * pow(semichord, 2);
+	assert(HBTK::check_finite(term_2));
+
+	// term_3 includes an integral.
+	auto integrand = [&](double local_pos)->double {
+		double vort_den = vorticity_density(local_pos);
+		double x, y;
+		std::tie(x, y) = foil_coordinate(local_pos);
+		double u, w;
+		std::tie(u, w) = get_particle_induced_velocity(x, y);
+		double tangential_velocity = u * cos(alpha) + w * sin(alpha);
+		return tangential_velocity * vort_den * semichord * (1 + local_pos);
+	};
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
+	term_3 = quad.integrate(integrand) * semichord * density;
+	assert(HBTK::check_finite(term_3));
+
+	return term_1 - term_2 - term_3;
+}
+
+std::pair<double, double> mFlow::Ramesh2014::aerofoil_lift_and_drag_coefficients()
+{
+	double normal_force_coeff = aerofoil_normal_force(1.) / 
+		(pow(free_stream_velocity, 2) * semichord);
+	double suction_force_coeff = aerofoil_leading_edge_suction_force(1.) /
+		(pow(free_stream_velocity, 2) * semichord);
+	double cl, cd;
+	double alpha = foil_AoA(time);
+	cl = normal_force_coeff * cos(alpha) + suction_force_coeff * sin(alpha);
+	cd = normal_force_coeff * sin(alpha) - suction_force_coeff * cos(alpha);
+	for (auto a : m_fourier_terms) { std::cout << a << "\n"; };
+	return std::make_pair(cl, cd);
+}
+
+std::vector<double> mFlow::Ramesh2014::rate_of_change_of_fourier_terms()
+{
+	assert(delta_t != 0);
+	std::vector<double> time_derivatives(m_fourier_terms.size());
+	for (int i = 0; i < (int) m_fourier_terms.size(); i++) {
+		time_derivatives[i] = (m_fourier_terms[i] - m_previous_fourier_terms[i]) / delta_t;
+	}
+	assert(HBTK::check_finite(time_derivatives));
+	return time_derivatives;
 }
 
 double mFlow::Ramesh2014::vortex_core_size() const

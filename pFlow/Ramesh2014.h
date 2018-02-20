@@ -76,34 +76,61 @@ namespace mFlow {
 		// by foil_coordinate(eta)
 		std::pair<double, double> foil_velocity(double eta);
 
+		// Force:
+
+		// Compute the Blasius leading edge suction force. Eq2.31
+		double aerofoil_leading_edge_suction_force(double density);
+		// Compute the normal force on the aerofoil. Eq2.30
+		double aerofoil_normal_force(double density);
+		// Compute the moment about the pitch location Eq2.32
+		double aerofoil_moment_about_pitch_location(double density);
+		// Compute the lift and drag coefficients.
+		// Std::pair<(lift coeff), (drag coeff)> is returned.
+		std::pair<double, double> aerofoil_lift_and_drag_coefficients();
+
 	private:
 		// Compute the velocities of the vortex particles in the wake.
 		void calculate_velocities();
+
 		// Convect the wake vortex particles using previosly calculated velocities
 		// (effectively a forward Euler scheme.)
 		void convect_particles();
+
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
 		void shed_new_particle();
+
 		// Get the total vorticity of all vortex particles in the wake.
 		double total_shed_vorticity();
+
 		// Get the velocity induced at a point by the all the vortex particles
 		// in the wake. Invalid if location is that of a particle (singular).
 		std::pair<double, double> get_particle_induced_velocity(double x, double y);
+
 		// Adjust the vorticity of the last shed particle to enforce 
 		// Kelvin's condition Eq2.6
 		void adjust_last_shed_vortex_particle_for_kelvin_condition();
 
-		// Vector to hold the fourier terms that describe the vorticity 
-		// over the aerofoil as described by Eq2.1 and Eq2.2
-		std::vector<double> m_fourier_terms;
 		// For a wake, compute the fourier terms describing the aerofoils
 		// vorticity distribution.
 		void compute_fourier_terms();
+
 		// Compute the aerofoil's bound vorticity.
 		double bound_vorticity();
+
 		// For local pos in [-1,1] with -1->LE, 1->TE, evaluate the foil's vorticity
 		// density function. Do not evaluate at leading edge (singular).
 		double vorticity_density(double local_pos);
+
+		// Vector to hold the fourier terms that describe the vorticity 
+		// over the aerofoil as described by Eq2.1 and Eq2.2
+		std::vector<double> m_fourier_terms;
+		// And the terms from the step before incase we want to compute the 
+		// time derivative.
+		std::vector<double> m_previous_fourier_terms;
+		// A method to extract the time rate of change of fourier terms
+		std::vector<double> rate_of_change_of_fourier_terms();
+
+
 		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
 		double vortex_core_size() const;
 
