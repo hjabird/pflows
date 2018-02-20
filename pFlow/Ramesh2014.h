@@ -1,4 +1,27 @@
 #pragma once
+/*////////////////////////////////////////////////////////////////////////////
+Ramesh2014.h
+
+Partial implimentation of the paper "Discrete-vortex method with novel 
+shedding criterion for unsteady aerofoil flows with intermittent leading-edge
+vortex shedding", Kiran Ramesh et al. J. Fluid Mech 2014.
+doi:10.1017/jfm.2014.297
+
+Copyright 2018 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <functional>
 #include <tuple>
@@ -23,10 +46,16 @@ namespace mFlow {
 
 		double time;				// Current simulation time value.
 		double delta_t;				// time = time + delta_t for time stepping.
-		void initialise();			// Set things up such that no errors are thrown.
-		void advance_one_step();	// Advance one step in the simulation.
+		// Initialises data structs. Throws exception for bad input values:
+		// Exceptions: std::domain_error with explanation message.
+		void initialise();			
+		// Advance one step in the simulation.
+		// Sheds particle, calcs vorticity, convects everything, increments time.
+		void advance_one_step();	
 
-		// vortex particles
+		// Vortex Particles:
+
+		// Structure representing the state of a single vortex particle.
 		struct vortex_particle {
 			double x, y;		// Positions in inertial (global) coordinate system.
 			double vx, vy;		// Particle velocity in intertial coordinate system.
@@ -35,10 +64,10 @@ namespace mFlow {
 		// Container for vortex particles.
 		std::vector<vortex_particle> m_vortex_particles;
 		// Returns number of particles in wake.
-		int num_particles();
+		int number_of_particles();
 
-		// Fourier series settings.
-		int num_fourier_terms;
+		// Number of fourier terms to represent aerofoil vorticity distribution.
+		int number_of_fourier_terms;
 		
 		// For -1 = LE, 1 = TE, get coordinate of point on foil.
 		std::pair<double, double> foil_coordinate(double eta);
@@ -56,7 +85,7 @@ namespace mFlow {
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
 		void shed_new_particle();
 		// Get the total vorticity of all vortex particles in the wake.
-		double shed_vorticity();
+		double total_shed_vorticity();
 		// Get the velocity induced at a point by the all the vortex particles
 		// in the wake. Invalid if location is that of a particle (singular).
 		std::pair<double, double> get_particle_induced_velocity(double x, double y);
@@ -73,7 +102,7 @@ namespace mFlow {
 		// Compute the aerofoil's bound vorticity.
 		double bound_vorticity();
 		// For local pos in [-1,1] with -1->LE, 1->TE, evaluate the foil's vorticity
-		// density function.
+		// density function. Do not evaluate at leading edge (singular).
 		double vorticity_density(double local_pos);
 		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
 		double vortex_core_size() const;

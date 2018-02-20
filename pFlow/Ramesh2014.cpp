@@ -1,5 +1,28 @@
 #include "stdafx.h"
 #include "Ramesh2014.h"
+/*////////////////////////////////////////////////////////////////////////////
+Ramesh2014.cpp
+
+Partial implimentation of the paper "Discrete-vortex method with novel
+shedding criterion for unsteady aerofoil flows with intermittent leading-edge
+vortex shedding", Kiran Ramesh et al. J. Fluid Mech 2014.
+doi:10.1017/jfm.2014.297
+
+Copyright 2018 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <cassert>
 #include <exception>
@@ -16,7 +39,7 @@ mFlow::Ramesh2014::Ramesh2014()
 	delta_t(0),
 	semichord(0),
 	pitch_location(0),
-	num_fourier_terms(0)
+	number_of_fourier_terms(0)
 {
 }
 
@@ -27,12 +50,12 @@ mFlow::Ramesh2014::~Ramesh2014()
 void mFlow::Ramesh2014::initialise()
 {
 	// Fourier terms:
-	if (num_fourier_terms == 0) {
-		throw std::domain_error("num_fourier_terms: "
+	if (number_of_fourier_terms == 0) {
+		throw std::domain_error("number_of_fourier_terms: "
 			"number of fourier terms for Ramesh2014 method should be more than 2. " 
 			__FILE__ ":"  + std::to_string(__LINE__));
 	}
-	m_fourier_terms = HBTK::uniform(0.0, num_fourier_terms);
+	m_fourier_terms = HBTK::uniform(0.0, number_of_fourier_terms);
 
 	// Timestep of zero goes nowhere!
 	if (delta_t == 0) {
@@ -66,7 +89,7 @@ void mFlow::Ramesh2014::advance_one_step()
 	time += delta_t;
 }
 
-int mFlow::Ramesh2014::num_particles()
+int mFlow::Ramesh2014::number_of_particles()
 {
 	return (int) m_vortex_particles.size();
 }
@@ -83,13 +106,13 @@ void mFlow::Ramesh2014::calculate_velocities()
 	// Velocities induced on particles by other particles (N-Body problem)
 	{
 		double vc_size = vortex_core_size();
-		for (int i = 0; i < num_particles(); i++) {
-			double xi, yi;
+		for (int i = 0; i < number_of_particles(); i++) {
+			double xi, yi;	// Cartesian coordinates of ith particle.
 			xi = m_vortex_particles[i].x;
 			yi = m_vortex_particles[i].y;
 			for (int j = 0; j < i; j++) {
-				double u, v;
-				double xj, yj;
+				double u, v;	// Cartesian velocity components
+				double xj, yj;	// Cartesian coordinates of jth particle
 				xj = m_vortex_particles[j].x;
 				yj = m_vortex_particles[j].y;
 				std::tie(u, v) = unity_vortex_blob_induced_vel(xj, yj, xi, yi, vc_size);
@@ -107,15 +130,17 @@ void mFlow::Ramesh2014::calculate_velocities()
 		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(30);
 		quad.telles_cubic_remap(-1.0);	// Adapt quadrature for the leading edge singularity.
 		auto u_integrand_outer = [&](double local_foil_pos, double x_mes, double y_mes)->double {
-			double xf, yf;
+			double xf, yf;	// Cartesian coordinates of the corresponing point on the aerofoil.
 			std::tie(xf, yf) = foil_coordinate(local_foil_pos);
-			double u = HBTK::PointVortex::unity_u_vel(x_mes, y_mes, xf, yf) * vorticity_density(local_foil_pos) * semichord;
+			double u = HBTK::PointVortex::unity_u_vel(x_mes, y_mes, xf, yf) 
+				* vorticity_density(local_foil_pos) * semichord;
 			return u;
 		};
 		auto v_integrand_outer = [&](double local_foil_pos, double x_mes, double y_mes)->double {
-			double xf, yf;
+			double xf, yf;	// Cartesian coordinates of the corresponing point on the aerofoil.
 			std::tie(xf, yf) = foil_coordinate(local_foil_pos);
-			double v = HBTK::PointVortex::unity_v_vel(x_mes, y_mes, xf, yf) * vorticity_density(local_foil_pos) * semichord;
+			double v = HBTK::PointVortex::unity_v_vel(x_mes, y_mes, xf, yf) 
+				* vorticity_density(local_foil_pos) * semichord;
 			return v;
 		};
 
@@ -143,6 +168,7 @@ void mFlow::Ramesh2014::calculate_velocities()
 
 void mFlow::Ramesh2014::convect_particles()
 {
+	// Forward Euler scheme - justified by Ramesh et al.
 	for (auto & particle : m_vortex_particles) {
 		particle.x += particle.vx * delta_t;
 		particle.y += particle.vy * delta_t;
@@ -153,26 +179,32 @@ void mFlow::Ramesh2014::convect_particles()
 void mFlow::Ramesh2014::shed_new_particle()
 {
 	vortex_particle particle;
-	if (num_particles() > 0) {
+	if (number_of_particles() > 0) {
 		particle = m_vortex_particles.back();
-		double te_x, te_y;
+		double te_x, te_y;	// Cartesian coordinates of trailing edge.
 		std::tie(te_x, te_y) = foil_coordinate(1);
+		// Adjust so that the new particle is 1/3 of the distance
+		// between the TE and the last shed particle.
 		particle.x -= (2. / 3.) * (particle.x - te_x);
 		particle.y -= (2. / 3.) * (particle.y - te_y);
+		particle.vorticity = 0;
 	}
 	else {
+		// Our first particle.
+		// Put the particle in the path of foil.
 		particle.vorticity = 0;
 		std::tie(particle.x, particle.y) = foil_coordinate(1);
 		std::tie(particle.vx, particle.vy) = foil_velocity(1);
-		particle.vx += free_stream_velocity;
-		particle.x += particle.vx * delta_t * 0.5;
-		particle.y += particle.vy * delta_t * 0.5;
+		particle.vx -= free_stream_velocity;
+		// 0.5 corresponds to the 1/3 rule used earlier (0.5 + 1 = 3 * 0.5)
+		particle.x -= particle.vx * delta_t * 0.5;
+		particle.y -= particle.vy * delta_t * 0.5;
 	}
 	m_vortex_particles.emplace_back(particle);
 	return;
 }
 
-double mFlow::Ramesh2014::shed_vorticity()
+double mFlow::Ramesh2014::total_shed_vorticity()
 {
 	double vorticity = 0;
 	for (auto particle : m_vortex_particles) {
@@ -180,19 +212,20 @@ double mFlow::Ramesh2014::shed_vorticity()
 	}
 	if (!HBTK::check_finite(vorticity)) {
 		std::overflow_error("Infinite vorticity: "
-			"The vorticity of the wake was found to be infinite whilst running Ramesh2014. " __FILE__
-			":" + std::to_string(__LINE__));
+			"The vorticity of the wake was found to be infinite whilst "
+			"running Ramesh2014. " __FILE__ ":" + std::to_string(__LINE__));
 	}
 	return vorticity; 
 }
 
-std::pair<double, double> mFlow::Ramesh2014::get_particle_induced_velocity(double x, double y)
+std::pair<double, double> mFlow::Ramesh2014::get_particle_induced_velocity(
+	double x, double y)
 {
-	double vx = 0;
-	double vy = 0;
+	double vx = 0;	// Cartesian x velocity
+	double vy = 0;	// Cartesian y velocity
 	double vc_size = vortex_core_size();
 	for (auto particle : m_vortex_particles) {
-		double u, v;
+		double u, v;	// Velocity induced by single vortex blob.
 		std::tie(u, v) = unity_vortex_blob_induced_vel(x, y, particle.x, particle.y, vc_size);
 		vx += particle.vorticity * u;
 		vy += particle.vorticity * v;
@@ -212,9 +245,9 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 	double alpha_dot = foil_dAoAdt(time);
 	double h_dot = foil_dZdt(time);
 	auto known_integrand = [&](double theta) -> double {
-		double local_x = - cos(theta);
+		double local_x = - cos(theta);		// x in [-1,1] -> [LE, TE]
 		double wake_induced_v, wake_induced_u;
-		double x, y;
+		double x, y;	// Coordinate of point we're evaluating
 		std::tie(x, y) = foil_coordinate(local_x);
 		std::tie(wake_induced_u, wake_induced_v) = get_particle_induced_velocity(x, y);
 		double T_1 = -free_stream_velocity * sin(alpha)
@@ -245,19 +278,20 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 			double normal_velocity = -cos(alpha) * vy - sin(alpha) * vx;
 			return normal_velocity * (cos(theta) - 1) * 2 * semichord;
 		};
-		quad.telles_quadratic_remap(0);
+		// We expect particle_integrand to be singular looking towards the TE.
+		quad.telles_quadratic_remap(0);	
 		I_unknown = quad.integrate(particle_integrand);
 	}
-	m_vortex_particles.back().vorticity = - (I_known + shed_vorticity()) / (1 + I_unknown);
+	m_vortex_particles.back().vorticity = - (I_known + total_shed_vorticity()) / (1 + I_unknown);
 	return;
 }
 
 void mFlow::Ramesh2014::compute_fourier_terms()
 {
-	assert(num_fourier_terms > 2);
+	assert(number_of_fourier_terms > 2);
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
 	quad.linear_remap(0, HBTK::Constants::pi());
-	for (int i = 0; i < num_fourier_terms; i++) {
+	for (int i = 0; i < number_of_fourier_terms; i++) {
 		auto integrand = [&](double theta) {
 			double foil_pos = semichord * (1 - cos(theta));
 			double x, y;		// Coordinate (global)
@@ -324,11 +358,13 @@ double mFlow::Ramesh2014::vortex_core_size() const
 	return delta_t_star_times_c * 1.3;
 }
 
-std::pair<double, double> mFlow::Ramesh2014::unity_vortex_blob_induced_vel(double x_mes, double y_mes, double x_vor, double y_vor, double vortex_size)
+std::pair<double, double> mFlow::Ramesh2014::unity_vortex_blob_induced_vel(
+	double x_mes, double y_mes, double x_vor, double y_vor, double vortex_size)
 {
 	assert((x_mes != x_vor) && (y_mes != y_vor));
 	double u, v, denominator;
-	denominator = sqrt(pow(pow(x_mes - x_vor, 2) + pow(y_mes - y_vor, 2), 2) + pow(vortex_size, 4)) * 2. * HBTK::Constants::pi();
+	denominator = sqrt(pow(pow(x_mes - x_vor, 2) + pow(y_mes - y_vor, 2), 2)
+		+ pow(vortex_size, 4)) * 2. * HBTK::Constants::pi();
 	u = (y_mes - y_vor) / denominator;
 	v = - (x_mes - x_vor) / denominator;
 	return std::make_pair(u, v);
