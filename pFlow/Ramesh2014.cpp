@@ -2,21 +2,68 @@
 #include "Ramesh2014.h"
 
 #include <cassert>
-#include "HBTK/PotentialFlowDistributions.h"
+#include <exception>
+#include <iostream>
+
 #include "HBTK/Checks.h"
 #include "HBTK/GaussianQuadrature.h"
+#include "HBTK/Generators.h"
+#include "HBTK/PotentialFlowDistributions.h"
 
 
 mFlow::Ramesh2014::Ramesh2014()
 	: time(0),
 	delta_t(0),
 	semichord(0),
-	pitch_location(0)
+	pitch_location(0),
+	num_fourier_terms(0)
 {
 }
 
 mFlow::Ramesh2014::~Ramesh2014()
 {
+}
+
+void mFlow::Ramesh2014::initialise()
+{
+	// Fourier terms:
+	if (num_fourier_terms == 0) {
+		throw std::domain_error("num_fourier_terms: "
+			"number of fourier terms for Ramesh2014 method should be more than 2. " 
+			__FILE__ ":"  + std::to_string(__LINE__));
+	}
+	m_fourier_terms = HBTK::uniform(0.0, num_fourier_terms);
+
+	// Timestep of zero goes nowhere!
+	if (delta_t == 0) {
+		throw std::domain_error("delta_t: "
+			"Time step for Ramesh2014 method must not be equal to zero. " __FILE__
+			":" + std::to_string(__LINE__));
+	}
+
+	// Timestep of zero goes nowhere!
+	if (!HBTK::check_finite(delta_t)) {
+		throw std::domain_error("delta_t: "
+			"Time step for Ramesh2014 be finite. " __FILE__
+			":" + std::to_string(__LINE__));
+	}
+
+	// But who would set time to infinite?
+	if (!HBTK::check_finite(time)) {
+		throw std::domain_error("time: "
+			"Time value for Ramesh2014 is not finite. Cannot use non-finite"
+			"values for time. " __FILE__ ":" + std::to_string(__LINE__));
+	}
+}
+
+void mFlow::Ramesh2014::advance_one_step()
+{
+	shed_new_particle();
+	adjust_last_shed_vortex_particle_for_kelvin_condition();
+	compute_fourier_terms();
+	calculate_velocities();
+	convect_particles();
+	time += delta_t;
 }
 
 int mFlow::Ramesh2014::num_particles()
@@ -33,30 +80,65 @@ void mFlow::Ramesh2014::calculate_velocities()
 		particle.vy = 0;
 	}
 
-	// particle velocities.
-	for (int i = 0; i < num_particles(); i++) {
-		double xi, yi;
-		xi = m_vortex_particles[i].x;
-		yi = m_vortex_particles[i].y;
-		for (int j = 0; j < i; j++) {
-			double u, v;
-			double xj, yj;
-			xj = m_vortex_particles[j].x;
-			yj = m_vortex_particles[j].y;
-			u = HBTK::PointVortex::unity_u_vel(xj, yj, xi, yi);
-			v = HBTK::PointVortex::unity_v_vel(xj, yj, xi, yi);
-			assert(HBTK::check_finite(u));
-			assert(HBTK::check_finite(v));
-			m_vortex_particles[j].vx += u * m_vortex_particles[i].vorticity;
-			m_vortex_particles[j].vy += v * m_vortex_particles[i].vorticity;
-			m_vortex_particles[i].vx -= u * m_vortex_particles[j].vorticity;
-			m_vortex_particles[i].vy -= v * m_vortex_particles[j].vorticity;
+	// Velocities induced on particles by other particles (N-Body problem)
+	{
+		double vc_size = vortex_core_size();
+		for (int i = 0; i < num_particles(); i++) {
+			double xi, yi;
+			xi = m_vortex_particles[i].x;
+			yi = m_vortex_particles[i].y;
+			for (int j = 0; j < i; j++) {
+				double u, v;
+				double xj, yj;
+				xj = m_vortex_particles[j].x;
+				yj = m_vortex_particles[j].y;
+				std::tie(u, v) = unity_vortex_blob_induced_vel(xj, yj, xi, yi, vc_size);
+				m_vortex_particles[j].vx += u * m_vortex_particles[i].vorticity;
+				m_vortex_particles[j].vy += v * m_vortex_particles[i].vorticity;
+				m_vortex_particles[i].vx -= u * m_vortex_particles[j].vorticity;
+				m_vortex_particles[i].vy -= v * m_vortex_particles[j].vorticity;
+			}
 		}
 	}
 
-	// Foil induced velocities.
+	// Velocity induced on particles by the aerofoil's vorticity distribution.
+	{
+		// We'll integrate over the aerofoil's vorticity distribution using a remapped Gauss quadrature.
+		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(30);
+		quad.telles_cubic_remap(-1.0);	// Adapt quadrature for the leading edge singularity.
+		auto u_integrand_outer = [&](double local_foil_pos, double x_mes, double y_mes)->double {
+			double xf, yf;
+			std::tie(xf, yf) = foil_coordinate(local_foil_pos);
+			double u = HBTK::PointVortex::unity_u_vel(x_mes, y_mes, xf, yf) * vorticity_density(local_foil_pos) * semichord;
+			return u;
+		};
+		auto v_integrand_outer = [&](double local_foil_pos, double x_mes, double y_mes)->double {
+			double xf, yf;
+			std::tie(xf, yf) = foil_coordinate(local_foil_pos);
+			double v = HBTK::PointVortex::unity_v_vel(x_mes, y_mes, xf, yf) * vorticity_density(local_foil_pos) * semichord;
+			return v;
+		};
 
+		for (auto & particle : m_vortex_particles) {
+			double x_mes = particle.x;
+			double y_mes = particle.y;
+			auto u_integrand_inner = [&](double local_pos) { return u_integrand_outer(local_pos, x_mes, y_mes); };
+			auto v_integrand_inner = [&](double local_pos) { return v_integrand_outer(local_pos, x_mes, y_mes); };
+			particle.vx += quad.integrate(u_integrand_inner);
+			particle.vy += quad.integrate(v_integrand_inner);
+		}
+	}
 
+	// Velocity induced by free stream.
+	for (auto & particle : m_vortex_particles) {
+		particle.vx += free_stream_velocity;
+	}
+
+	// We're done. Check that we've done something sane:
+	for (auto particle : m_vortex_particles) {
+		assert(HBTK::check_finite(particle.vx));
+		assert(HBTK::check_finite(particle.vy));
+	}
 }
 
 void mFlow::Ramesh2014::convect_particles()
@@ -72,19 +154,19 @@ void mFlow::Ramesh2014::shed_new_particle()
 {
 	vortex_particle particle;
 	if (num_particles() > 0) {
+		particle = m_vortex_particles.back();
+		double te_x, te_y;
+		std::tie(te_x, te_y) = foil_coordinate(1);
+		particle.x -= (2. / 3.) * (particle.x - te_x);
+		particle.y -= (2. / 3.) * (particle.y - te_y);
+	}
+	else {
 		particle.vorticity = 0;
 		std::tie(particle.x, particle.y) = foil_coordinate(1);
 		std::tie(particle.vx, particle.vy) = foil_velocity(1);
 		particle.vx += free_stream_velocity;
 		particle.x += particle.vx * delta_t * 0.5;
 		particle.y += particle.vy * delta_t * 0.5;
-	}
-	else {
-		particle = m_vortex_particles.back();
-		double te_x, te_y;
-		std::tie(te_x, te_y) = foil_coordinate(1);
-		particle.x -= (2. / 3.) * (particle.x - te_x);
-		particle.y -= (2. / 3.) * (particle.y - te_y);
 	}
 	m_vortex_particles.emplace_back(particle);
 	return;
@@ -96,7 +178,11 @@ double mFlow::Ramesh2014::shed_vorticity()
 	for (auto particle : m_vortex_particles) {
 		vorticity += particle.vorticity;
 	}
-	assert(HBTK::check_finite(vorticity));
+	if (!HBTK::check_finite(vorticity)) {
+		std::overflow_error("Infinite vorticity: "
+			"The vorticity of the wake was found to be infinite whilst running Ramesh2014. " __FILE__
+			":" + std::to_string(__LINE__));
+	}
 	return vorticity; 
 }
 
@@ -104,11 +190,12 @@ std::pair<double, double> mFlow::Ramesh2014::get_particle_induced_velocity(doubl
 {
 	double vx = 0;
 	double vy = 0;
+	double vc_size = vortex_core_size();
 	for (auto particle : m_vortex_particles) {
-		vx += particle.vorticity *
-			HBTK::PointVortex::unity_u_vel(x, y, particle.x, particle.y);
-		vy += particle.vorticity *
-			HBTK::PointVortex::unity_v_vel(x, y, particle.x, particle.y);
+		double u, v;
+		std::tie(u, v) = unity_vortex_blob_induced_vel(x, y, particle.x, particle.y, vc_size);
+		vx += particle.vorticity * u;
+		vy += particle.vorticity * v;
 		assert(HBTK::check_finite(vx));
 		assert(HBTK::check_finite(vy));
 	}
@@ -118,9 +205,50 @@ std::pair<double, double> mFlow::Ramesh2014::get_particle_induced_velocity(doubl
 
 void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 {
-	double system_vorticity = shed_vorticity() + bound_vorticity();
-	assert(num_particles() > 0);
-	m_vortex_particles.back().vorticity = -system_vorticity;
+	m_vortex_particles.back().vorticity = 0;
+	// The bound vorticity distribution can be decomposed into a part that is a result of
+	// the wake for which we have already set the vorticity.
+	double alpha = foil_AoA(time);
+	double alpha_dot = foil_dAoAdt(time);
+	double h_dot = foil_dZdt(time);
+	auto known_integrand = [&](double theta) -> double {
+		double local_x = - cos(theta);
+		double wake_induced_v, wake_induced_u;
+		double x, y;
+		std::tie(x, y) = foil_coordinate(local_x);
+		std::tie(wake_induced_u, wake_induced_v) = get_particle_induced_velocity(x, y);
+		double T_1 = -free_stream_velocity * sin(alpha)
+			- alpha_dot * semichord * (1 + local_x - 2 * pitch_location)
+			+ h_dot * cos(alpha)
+			- cos(alpha) * wake_induced_v
+			- sin(alpha) * wake_induced_u;
+		return T_1 * (cos(theta) - 1) * 2.0 * semichord;
+	};
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(30);
+	quad.linear_remap(0, HBTK::Constants::pi());
+	double I_known = quad.integrate(known_integrand);
+	assert(HBTK::check_finite(I_known));
+
+	// And a part that will be cause by our new vortex particle.
+	double I_unknown;
+	{
+		double x_p, y_p; // Position of our last shed vortex particle.
+		x_p = m_vortex_particles.back().x;
+		y_p = m_vortex_particles.back().y;
+		double v_core_size = vortex_core_size();
+		auto particle_integrand = [&](double theta) -> double {
+			double foil_pos = - cos(theta);	// Foil local coordinate in -1-> LE, 1->TE
+			double x_f, y_f; // Position on our foil.
+			std::tie(x_f, y_f) = foil_coordinate(foil_pos);
+			double vx, vy;
+			std::tie(vx, vy) = unity_vortex_blob_induced_vel(x_f, y_f, x_p, y_p, v_core_size);
+			double normal_velocity = -cos(alpha) * vy - sin(alpha) * vx;
+			return normal_velocity * (cos(theta) - 1) * 2 * semichord;
+		};
+		quad.telles_quadratic_remap(0);
+		I_unknown = quad.integrate(particle_integrand);
+	}
+	m_vortex_particles.back().vorticity = - (I_known + shed_vorticity()) / (1 + I_unknown);
 	return;
 }
 
@@ -139,13 +267,12 @@ void mFlow::Ramesh2014::compute_fourier_terms()
 			double alpha = foil_AoA(time);
 			double alpha_dot = foil_dAoAdt(time);
 			double h_dot = foil_dZdt(time);
-			double fvx, fvy;	// Foil surface velocity.
-			std::tie(fvx, fvy) = foil_velocity(foil_pos);
-			double rvx, rvy;    // Relative velocity of foil vortex particle induced flow.
-			rvx = pvx - fvx;
-			rvy = pvy - fvy;
 			// Return velocity normal to the foil.
-			return cos(i * theta) * (- rvx * sin(alpha) + rvy * cos(alpha)) 
+			return cos(i * theta) * (
+				- free_stream_velocity * sin(alpha)
+				- alpha_dot * semichord * (1 - cos(theta) - 2 * pitch_location)
+				- h_dot * cos(alpha)
+				- cos(alpha) * pvy - sin(alpha) * pvx)
 				/ free_stream_velocity;
 		};
 		m_fourier_terms[i] = quad.integrate(integrand) * 2 / HBTK::Constants::pi();
@@ -160,10 +287,23 @@ double mFlow::Ramesh2014::bound_vorticity()
 		(2 * m_fourier_terms[0] + m_fourier_terms[1]);
 }
 
+double mFlow::Ramesh2014::vorticity_density(double local_pos)
+{
+	assert(HBTK::check_finite(m_fourier_terms));
+	assert(local_pos != -1.);	// Leading edge singularity will cause problems.
+	double theta = acos(-local_pos);
+	double vd = (local_pos == 1. ? 0 : m_fourier_terms[0] * (1 - cos(theta)) / sin(theta));
+	for (int i = 1; i < (int)m_fourier_terms.size(); i++) {
+		vd += m_fourier_terms[i] * sin(i * theta);
+	}
+	vd *= free_stream_velocity;
+	return vd;
+}
+
 std::pair<double, double> mFlow::Ramesh2014::foil_coordinate(double eta)
 {
 	double x, y;
-	x = semichord * (pitch_location - eta) * cos(foil_AoA(time));
+	x = semichord * (pitch_location + eta) * cos(foil_AoA(time));
 	y = foil_Z(time) + semichord * (pitch_location - eta) * sin(foil_AoA(time));
 	return std::make_pair(x, y);
 }
@@ -172,8 +312,24 @@ std::pair<double, double> mFlow::Ramesh2014::foil_velocity(double eta)
 {
 	double vx, vy;
 	vy = foil_dZdt(time);
-	double radial_vel = semichord * (pitch_location - eta) * foil_dAoAdt(time);
+	double radial_vel = semichord * (pitch_location + eta) * foil_dAoAdt(time);
 	vy += radial_vel * sin(foil_AoA(time));
 	vx = radial_vel * cos(foil_AoA(time));
 	return std::make_pair(vx, vy);
+}
+
+double mFlow::Ramesh2014::vortex_core_size() const
+{
+	double delta_t_star_times_c = delta_t * free_stream_velocity;
+	return delta_t_star_times_c * 1.3;
+}
+
+std::pair<double, double> mFlow::Ramesh2014::unity_vortex_blob_induced_vel(double x_mes, double y_mes, double x_vor, double y_vor, double vortex_size)
+{
+	assert((x_mes != x_vor) && (y_mes != y_vor));
+	double u, v, denominator;
+	denominator = sqrt(pow(pow(x_mes - x_vor, 2) + pow(y_mes - y_vor, 2), 2) + pow(vortex_size, 4)) * 2. * HBTK::Constants::pi();
+	u = (y_mes - y_vor) / denominator;
+	v = - (x_mes - x_vor) / denominator;
+	return std::make_pair(u, v);
 }

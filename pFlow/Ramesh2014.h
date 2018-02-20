@@ -8,57 +8,80 @@ namespace mFlow {
 	class Ramesh2014
 	{
 	public:
-		/*
-		Right now I'm using HBTK::PointVortex.
-		This is a vortex singularity, not a vortex blob 
-		as used in Ramesh et al.
-		FYI.
-		*/
-
 
 		Ramesh2014();
 		~Ramesh2014();
 
-		// Kinematics.
-		double free_stream_velocity;
-		double semichord;
-		double pitch_location; // in [-1, 1]. -1->LE, 1->TE
-		std::function<double(double)> foil_Z;
-		std::function<double(double)> foil_dZdt;
-		std::function<double(double)> foil_AoA;
-		std::function<double(double)> foil_dAoAdt;
+		double free_stream_velocity;	// (no unit)
+		double semichord;				// Half the chord length.
+		double pitch_location;			// in [-1, 1]. -1->LE, 1->TE
+		// Kinematics.	Functions with respect to time.
+		std::function<double(double)> foil_Z;		// h(t)
+		std::function<double(double)> foil_dZdt;	// h_dot(t)
+		std::function<double(double)> foil_AoA;		// alpha(t) (radians)
+		std::function<double(double)> foil_dAoAdt;	// alpha_dot(t) (rad / time)
 
-		double time;
-		double delta_t;
-		void advance_one_step();
+		double time;				// Current simulation time value.
+		double delta_t;				// time = time + delta_t for time stepping.
+		void initialise();			// Set things up such that no errors are thrown.
+		void advance_one_step();	// Advance one step in the simulation.
 
 		// vortex particles
 		struct vortex_particle {
-			double x, y;
-			double vx, vy;
-			double vorticity;
+			double x, y;		// Positions in inertial (global) coordinate system.
+			double vx, vy;		// Particle velocity in intertial coordinate system.
+			double vorticity;	// Vorticity represented by vortex particle.
 		};
+		// Container for vortex particles.
 		std::vector<vortex_particle> m_vortex_particles;
+		// Returns number of particles in wake.
 		int num_particles();
 
 		// Fourier series settings.
 		int num_fourier_terms;
 		
-	private:
-		void calculate_velocities();
-		void convect_particles();
-		void shed_new_particle();
-		double shed_vorticity();
-		std::pair<double, double> get_particle_induced_velocity(double x, double y);
-		void adjust_last_shed_vortex_particle_for_kelvin_condition();
-
-		std::vector<double> m_fourier_terms;
-		void compute_fourier_terms();
-		double bound_vorticity();
-
 		// For -1 = LE, 1 = TE, get coordinate of point on foil.
 		std::pair<double, double> foil_coordinate(double eta);
+
+		// For -1 = LE, 1 = TE, get the velocity of a point on the foil described
+		// by foil_coordinate(eta)
 		std::pair<double, double> foil_velocity(double eta);
+
+	private:
+		// Compute the velocities of the vortex particles in the wake.
+		void calculate_velocities();
+		// Convect the wake vortex particles using previosly calculated velocities
+		// (effectively a forward Euler scheme.)
+		void convect_particles();
+		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
+		void shed_new_particle();
+		// Get the total vorticity of all vortex particles in the wake.
+		double shed_vorticity();
+		// Get the velocity induced at a point by the all the vortex particles
+		// in the wake. Invalid if location is that of a particle (singular).
+		std::pair<double, double> get_particle_induced_velocity(double x, double y);
+		// Adjust the vorticity of the last shed particle to enforce 
+		// Kelvin's condition Eq2.6
+		void adjust_last_shed_vortex_particle_for_kelvin_condition();
+
+		// Vector to hold the fourier terms that describe the vorticity 
+		// over the aerofoil as described by Eq2.1 and Eq2.2
+		std::vector<double> m_fourier_terms;
+		// For a wake, compute the fourier terms describing the aerofoils
+		// vorticity distribution.
+		void compute_fourier_terms();
+		// Compute the aerofoil's bound vorticity.
+		double bound_vorticity();
+		// For local pos in [-1,1] with -1->LE, 1->TE, evaluate the foil's vorticity
+		// density function.
+		double vorticity_density(double local_pos);
+		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
+		double vortex_core_size() const;
+
+		// The velocity induced at point (x_mes, y_mes) by a vortex blob at (x_vor, y_vor)
+		// with unity total vorticity. Eq2.12 and Eq2.13
+		std::pair<double, double> unity_vortex_blob_induced_vel(
+			double x_mes, double y_mes, double x_vor, double y_vor, double vortex_core_size);
 	};
 } // End namespace mFlow
 
