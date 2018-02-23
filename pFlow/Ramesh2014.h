@@ -44,6 +44,10 @@ namespace mFlow {
 		std::function<double(double)> foil_AoA;		// alpha(t) (radians)
 		std::function<double(double)> foil_dAoAdt;	// alpha_dot(t) (rad / time)
 
+		// Foil geometry:
+		std::function<double(double)> camber_line;	// Defined in [-1, 1]
+		std::function<double(double)> camber_slope;	// Defined in [-1, 1]
+
 		double time;				// Current simulation time value.
 		double delta_t;				// time = time + delta_t for time stepping.
 		// Initialises data structs. Throws exception for bad input values:
@@ -88,6 +92,15 @@ namespace mFlow {
 		// Std::pair<(lift coeff), (drag coeff)> is returned.
 		std::pair<double, double> aerofoil_lift_and_drag_coefficients();
 
+		// Detail:
+
+		// The fourier terms curently representing the vorticity distribution
+		// over the aerofoil.
+		std::vector<double> get_fourier_terms();
+
+		// Get the total vorticity of all vortex particles in the wake.
+		double total_shed_vorticity();
+
 	private:
 		// Compute the velocities of the vortex particles in the wake.
 		void calculate_velocities();
@@ -99,8 +112,6 @@ namespace mFlow {
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
 		void shed_new_particle();
 
-		// Get the total vorticity of all vortex particles in the wake.
-		double total_shed_vorticity();
 
 		// Get the velocity induced at a point by the all the vortex particles
 		// in the wake. Invalid if location is that of a particle (singular).

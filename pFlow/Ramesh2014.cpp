@@ -85,11 +85,12 @@ void mFlow::Ramesh2014::initialise()
 
 void mFlow::Ramesh2014::advance_one_step()
 {
+	convect_particles();
 	shed_new_particle();
 	adjust_last_shed_vortex_particle_for_kelvin_condition();
+	m_previous_fourier_terms = m_fourier_terms;
 	compute_fourier_terms();
 	calculate_velocities();
-	convect_particles();
 	time += delta_t;
 }
 
@@ -98,6 +99,11 @@ int mFlow::Ramesh2014::number_of_particles()
 	return (int) m_vortex_particles.size();
 }
 
+
+std::vector<double> mFlow::Ramesh2014::get_fourier_terms()
+{
+	return m_fourier_terms;
+}
 
 void mFlow::Ramesh2014::calculate_velocities()
 {
@@ -131,7 +137,7 @@ void mFlow::Ramesh2014::calculate_velocities()
 	// Velocity induced on particles by the aerofoil's vorticity distribution.
 	{
 		// We'll integrate over the aerofoil's vorticity distribution using a remapped Gauss quadrature.
-		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(30);
+		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 		quad.telles_cubic_remap(-1.0);	// Adapt quadrature for the leading edge singularity.
 		auto u_integrand_outer = [&](double local_foil_pos, double x_mes, double y_mes)->double {
 			double xf, yf;	// Cartesian coordinates of the corresponing point on the aerofoil.
@@ -249,7 +255,7 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 	double alpha_dot = foil_dAoAdt(time);
 	double h_dot = foil_dZdt(time);
 	auto known_integrand = [&](double theta) -> double {
-		double local_x = - cos(theta);		// x in [-1,1] -> [LE, TE]
+		double local_x = - cos(theta);		// [0, pi] -> x in [-1,1] -> [LE, TE]
 		double wake_induced_v, wake_induced_u;
 		double x, y;	// Coordinate of point we're evaluating
 		std::tie(x, y) = foil_coordinate(local_x);
@@ -261,7 +267,7 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 			- sin(alpha) * wake_induced_u;
 		return T_1 * (cos(theta) - 1) * 2.0 * semichord;
 	};
-	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(30);
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
 	double I_known = quad.integrate(known_integrand);
 	assert(HBTK::check_finite(I_known));
@@ -280,7 +286,7 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 			double vx, vy;
 			std::tie(vx, vy) = unity_vortex_blob_induced_vel(x_f, y_f, x_p, y_p, v_core_size);
 			double normal_velocity = -cos(alpha) * vy - sin(alpha) * vx;
-			return normal_velocity * (cos(theta) - 1) * 2 * semichord;
+			return normal_velocity * (cos(theta) - 1) * 2.0 * semichord;
 		};
 		// We expect particle_integrand to be singular looking towards the TE.
 		quad.telles_quadratic_remap(0);	
@@ -293,11 +299,11 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 void mFlow::Ramesh2014::compute_fourier_terms()
 {
 	assert(number_of_fourier_terms > 2);
-	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
 	for (int i = 0; i < number_of_fourier_terms; i++) {
 		auto integrand = [&](double theta) {
-			double foil_pos = semichord * (1 - cos(theta));
+			double foil_pos = - cos(theta);
 			double x, y;		// Coordinate (global)
 			std::tie(x, y) = foil_coordinate(foil_pos);
 			double pvx, pvy;	// vortex particle induced velocities
@@ -307,9 +313,9 @@ void mFlow::Ramesh2014::compute_fourier_terms()
 			double h_dot = foil_dZdt(time);
 			// Return velocity normal to the foil.
 			return cos(i * theta) * (
-				- free_stream_velocity * sin(alpha)
+				-free_stream_velocity * sin(alpha)
 				- alpha_dot * semichord * (1 - cos(theta) - 2 * pitch_location)
-				- h_dot * cos(alpha)
+				+ h_dot * cos(alpha)
 				- cos(alpha) * pvy - sin(alpha) * pvx)
 				/ free_stream_velocity;
 		};
@@ -330,19 +336,29 @@ double mFlow::Ramesh2014::vorticity_density(double local_pos)
 	assert(HBTK::check_finite(m_fourier_terms));
 	assert(local_pos != -1.);	// Leading edge singularity will cause problems.
 	double theta = acos(-local_pos);
-	double vd = (local_pos == 1. ? 0 : m_fourier_terms[0] * (1 - cos(theta)) / sin(theta));
+	double vd = (local_pos == 1. ? 0 : m_fourier_terms[0] * (1 + cos(theta)) / sin(theta));
 	for (int i = 1; i < (int)m_fourier_terms.size(); i++) {
 		vd += m_fourier_terms[i] * sin(i * theta);
 	}
-	vd *= free_stream_velocity;
+	vd *= 2 * free_stream_velocity;
 	return vd;
 }
 
 std::pair<double, double> mFlow::Ramesh2014::foil_coordinate(double eta)
 {
 	double x, y;
-	x = semichord * (pitch_location + eta) * cos(foil_AoA(time));
+	double alpha = foil_AoA(time);
+	x = semichord * eta;
+	y = camber_line(eta);
+	x -= semichord * pitch_location;
+	double xtmp = x * cos(alpha) - y * sin(alpha);
+	double ytmp = x * sin(alpha) + y * cos(alpha);
+	x = xtmp = semichord * pitch_location;
+	y = ytmp + foil_Z(time);
+	/*
+	x = semichord * ((eta - pitch_location) * cos(foil_AoA(time)) + pitch_location);
 	y = foil_Z(time) + semichord * (pitch_location - eta) * sin(foil_AoA(time));
+	*/
 	return std::make_pair(x, y);
 }
 
@@ -379,10 +395,10 @@ double mFlow::Ramesh2014::aerofoil_normal_force(double density)
 	term_1211 = free_stream_velocity * cos(alpha) + h_dot * sin(alpha);
 	term_1212 = m_fourier_terms[0] + m_fourier_terms[1] / 2;
 	term_121  = term_1211 * term_1212;
-	term_122 = 0;/*2 * semichord * (
+	term_122 = 2 * semichord * (
 		(3. / 4) * fourier_derivatives[0]
 		+ (1. / 4) * fourier_derivatives[1]
-		+ (1. / 8) * fourier_derivatives[2]);*/
+		+ (1. / 8) * fourier_derivatives[2]);
 	term_12 = term_121 + term_122;
 	term_1 = term_11 * term_12;
 	assert(HBTK::check_finite(term_1));
@@ -394,10 +410,10 @@ double mFlow::Ramesh2014::aerofoil_normal_force(double density)
 		std::tie(x, y) = foil_coordinate(local_pos);
 		double u, w; 
 		std::tie(u, w) = get_particle_induced_velocity(x, y);
-		double tangential_velocity = u * cos(alpha) + w * sin(alpha);
+		double tangential_velocity = u * cos(alpha) - w * sin(alpha);
 		return tangential_velocity * vort_den;
 	};
-	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	term_2 = quad.integrate(integrand) * semichord * density;
 	assert(HBTK::check_finite(term_2));
 	return term_1 + term_2;
@@ -419,11 +435,11 @@ double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
 	term_212 = 0.25 * m_fourier_terms[0] + 0.25 * m_fourier_terms[1]
 		- 0.25 * m_fourier_terms[2];
 	term_21 = term_211 * term_212;
-	term_22 = 0; /*semichord * 2 * (
+	term_22 = semichord * 2 * (
 		(7. / 16) * fourier_derivatives[0]
 		+ (11. / 64) * fourier_derivatives[1]
 		+ (1. / 16) * fourier_derivatives[2]
-		- (1. / 64) * fourier_derivatives[3]) ;*/
+		- (1. / 64) * fourier_derivatives[3]);
 	term_2 = (term_21 + term_22) * density * 4 * 
 		free_stream_velocity * pow(semichord, 2);
 	assert(HBTK::check_finite(term_2));
@@ -435,7 +451,7 @@ double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
 		std::tie(x, y) = foil_coordinate(local_pos);
 		double u, w;
 		std::tie(u, w) = get_particle_induced_velocity(x, y);
-		double tangential_velocity = u * cos(alpha) + w * sin(alpha);
+		double tangential_velocity = u * cos(alpha) - w * sin(alpha);
 		return tangential_velocity * vort_den * semichord * (1 + local_pos);
 	};
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(40);
@@ -455,7 +471,6 @@ std::pair<double, double> mFlow::Ramesh2014::aerofoil_lift_and_drag_coefficients
 	double alpha = foil_AoA(time);
 	cl = normal_force_coeff * cos(alpha) + suction_force_coeff * sin(alpha);
 	cd = normal_force_coeff * sin(alpha) - suction_force_coeff * cos(alpha);
-	for (auto a : m_fourier_terms) { std::cout << a << "\n"; };
 	return std::make_pair(cl, cd);
 }
 
