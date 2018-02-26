@@ -52,14 +52,14 @@ namespace mFlow {
 	{
 	}
 
-	std::complex<double> Sclavounos1987::conventional_lift_coefficient(double heave_amplitude, 
-		double pitch_amplitude, double phase_offset, double frequency, WingProjectionGeometry wing,
-		double heave_added_mass_a33)
+	std::complex<double> Sclavounos1987::conventional_lift_coefficient(double heave_amplitude,
+		double pitch_amplitude, double phase_offset, double frequency,
+		WingProjectionGeometry wing, double heave_added_mass_a33, double pitch_offset)
 	{
 		assert(frequency > 0);
 		assert(HBTK::check_finite(heave_amplitude));
 		assert(HBTK::check_finite(pitch_amplitude));
-
+		
 		std::complex<double> heave_cl, pitch_cl;
 		Sclavounos1987 analysis;
 		analysis.wing = wing;
@@ -69,7 +69,9 @@ namespace mFlow {
 
 		analysis.j = 3;
 		analysis.compute_solution();
-		heave_cl = analysis.compute_lift_coeff_j3(heave_added_mass_a33) * heave_amplitude  
+		heave_cl = analysis.compute_lift_coeff_j3(heave_added_mass_a33) * 
+			(heave_amplitude  
+				+ pitch_offset * pitch_amplitude * exp(HBTK::Constants::i() * phase_offset))
 			* (analysis.omega / analysis.U);
 
 		analysis.j = 5;
@@ -542,15 +544,6 @@ namespace mFlow {
 		std::complex<double> pitch = pitch2d + pitch3d_correction;
 
 		return plunge / ((pitch_axis_offset * plunge) + pitch);
-		//std::complex<double> plunge = compute_lift_coeff_j3(rectangular_added_mass_coefficient());
-		//auto mult = -(wing.semichord(0) / 2 + U / (HBTK::Constants::i() * omega));
-		//auto swap_vorticity = m_solution;
-		//m_solution *= mult;
-		//j = 5;
-		//std::complex<double> pitch = compute_lift_coeff_j5();
-		//j = 3;
-		//m_solution = swap_vorticity;
-		//return plunge / pitch;
 	}
 
 	double  Sclavounos1987::elliptic_added_mass_coefficient() {

@@ -41,9 +41,9 @@ namespace mFlow {
 		// Get the lift against time for a single period of oscillation, for given amplitudes,
 		// phase offset of pitch against heave, frequency and wing geometry.
 		// pitch_amp, phase and freq are all radians based.
-		static  std::complex<double> conventional_lift_coefficient(double heave_amplitude, 
-			double pitch_amplitude, double phase_offset, double frequency, 
-			WingProjectionGeometry wing, double heave_added_mass_a33);
+		static  std::complex<double> conventional_lift_coefficient(double heave_amplitude,
+			double pitch_amplitude, double phase_offset, double frequency,
+			WingProjectionGeometry wing, double heave_added_mass_a33, double pitch_offset);
 
 
 		// MEMBER FUNCTIONS
