@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="Guermond1990.h" />
+    <ClInclude Include="LargeAmplitudeLiftingLineTheory.h" />
     <ClInclude Include="McGowan2011.h" />
     <ClInclude Include="Plotting.h" />
     <ClInclude Include="Ramesh2014.h" />
@@ -167,6 +168,7 @@
   <ItemGroup>
     <ClCompile Include="Common.cpp" />
     <ClCompile Include="Guermond1990.cpp" />
+    <ClCompile Include="LargeAmplitudeLiftingLineTheory.cpp" />
     <ClCompile Include="McGowan2011.cpp" />
     <ClCompile Include="Plotting.cpp" />
     <ClCompile Include="Ramesh2014.cpp" />

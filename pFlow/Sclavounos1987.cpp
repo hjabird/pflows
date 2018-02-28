@@ -245,7 +245,7 @@ namespace mFlow {
 	{
 		auto theta_sing = acos(y_position / wing.semispan());
 		
-		const int num_quad_points = 30;
+		const int num_quad_points = 100;
 		auto quad = split_quad(num_quad_points, theta_sing);
 
 		// We're using the singularity subtraction method.
@@ -310,7 +310,7 @@ namespace mFlow {
 			return integrand;
 		};
 
-		auto quad = split_quad(50, theta_sing); // points_lower, weights_lower, points_upper, weights_upper
+		auto quad = split_quad(100, theta_sing); // points_lower, weights_lower, points_upper, weights_upper
 		auto int_lower = HBTK::static_integrate(numerical_integrand, 
 			std::get<0>(quad), std::get<1>(quad), std::get<0>(quad).size());
 		auto int_upper = HBTK::static_integrate(numerical_integrand, 
@@ -327,7 +327,7 @@ namespace mFlow {
 		// Integrating the P term of of int ( Gamma'(eta) K(y-eta) deta).
 		// We're integrating in [0, singularity], [singularity, pi]
 		auto theta_sing = acos(y / wing.semispan());
-		auto quad = split_quad(40, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
+		auto quad = split_quad(100, theta_sing); // lower_points, lower_weights, upper_points, upper_weights
 		auto integrand = [&](double theta0)->std::complex<double> {
 			auto eta = wing.semispan() * cos(theta0);
 			return dsintheta_dtheta(theta0, k) * K_term3(y - eta);
@@ -473,7 +473,7 @@ namespace mFlow {
 		};
 
 		term_11 = -8. * wing.semispan() / wing.area();
-		const int n_pts = 40;
+		const int n_pts = 100;
 		std::array<double, n_pts> points, weights;
 		HBTK::gauss_legendre(points, weights);
 		for (int idx = 0; idx < n_pts; idx++) {
@@ -618,7 +618,7 @@ namespace mFlow {
 		double ratio = a / b;
 		// Linear interpolation of correction for ellipse from circle.
 		std::vector<double> known_ratios = { 1., 1.5, 2., 3., 10000. }; // To inf really.
-		std::vector<double> known_coeffs = { 0.478, 0.680, 0.840, 1.000, 1.000 };
+		std::vector<double> known_coeffs = HBTK::uniform(1, 5); // { 0.478, 0.680, 0.840, 1.000, 1.000 };
 		added_mass *= 2 * HBTK::linear_interpolate(known_ratios, known_coeffs, ratio);
 		return added_mass;
 	}
