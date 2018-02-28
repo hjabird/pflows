@@ -1,0 +1,5 @@
+C:/Users/User/source/repos/pFlows/build/CMakeFiles/INSTALL.dir
+C:/Users/User/source/repos/pFlows/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/User/source/repos/pFlows/build/CMakeFiles/ZERO_CHECK.dir
+C:/Users/User/source/repos/pFlows/build/pFlows/CMakeFiles/pFlows.dir
+C:/Users/User/source/repos/pFlows/build/pFlows/CMakeFiles/INSTALL.dir
