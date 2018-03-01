@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.1)
 
+message("CMAKE_INSTALL_PREFIX " ${CMAKE_INSTALL_PREFIX})
+message("CMAKE_PREFIX_PATH " ${CMAKE_PREFIX_PATH})
+message("CMAKE_INCLUDE_PATH " ${CMAKE_PREFIX_PATH})
+
 # Gather files that constitute library ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 file (GLOB pFlows_INCLUDE "include/pFlows/*.h")
 file (GLOB pFlows_SOURCE  "src/*.cpp")
@@ -16,14 +20,12 @@ add_library(pFlows STATIC ${pFlows_INCLUDE}
 # External library dependencies ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOOST
 find_package(Boost 1.60 REQUIRED)
-target_link_libraries(pFlows Boost)
+# target_link_libraries(pFlows Boost)
 # EIGEN
 find_package(Eigen3 REQUIRED)
-target_link_libraries(pFlows Eigen)
+# target_link_libraries(pFlows Eigen3)
 # HBTK
 find_package(HBTK REQUIRED)
-message("HBTK " ${HBTK_FOUND})
-message("HBTK dir " ${HBTK_DIR})
 target_link_libraries(pFlows HBTK)
 # target_include_directories(pFlows PRIVATE ${CMAKE_PREFIX_PATH})
  
