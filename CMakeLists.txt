@@ -19,7 +19,8 @@ message ("cxx Flags:" ${CMAKE_CXX_FLAGS})
 # Sub-directories where more CMakeLists.txt exist
 # add_subdirectory(Demo)
 add_subdirectory (pFlows)
- 
+add_subdirectory (Demo)
+
 # Turn on CMake testing capabilities
 # enable_testing()
  
