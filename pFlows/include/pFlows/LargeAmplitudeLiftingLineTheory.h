@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include <HBTK\CartesianPoint.h>
-#include <HBTK\CartesianPlane.h>
+#include <HBTK/CartesianPoint.h>
+#include <HBTK/CartesianPlane.h>
 
 #include "WingProjectionGeometry.h"
 

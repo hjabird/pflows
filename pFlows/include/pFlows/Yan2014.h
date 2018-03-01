@@ -28,8 +28,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <functional>
 #include <vector>
 
-#include "HBTK\StructuredMeshBlock3D.h"
-#include "HBTK\StructuredValueBlockND.h"
+#include "HBTK/StructuredMeshBlock3D.h"
+#include "HBTK/StructuredValueBlockND.h"
 
 namespace mFlow {
 	class Yan2014
