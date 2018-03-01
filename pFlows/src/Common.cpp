@@ -29,25 +29,25 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 namespace mFlow {
 	namespace Common {
 
-		std::complex<double> Common::hankel2_0(double k_l)
+		std::complex<double> hankel2_0(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(0, k_l);
 		}
 
-		std::complex<double> Common::hankel2_1(double k_l)
+		std::complex<double> hankel2_1(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_hankel_2(1, k_l);
 		}
 
-		std::complex<double> Common::bessel_0(double k_l)
+		std::complex<double> bessel_0(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 0);
 		}
 
-		std::complex<double> Common::bessel_1(double k_l)
+		std::complex<double> bessel_1(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return boost::math::cyl_bessel_j(k_l, 1);
@@ -64,13 +64,13 @@ namespace mFlow {
 			return boost::math::expint(1, t);
 		}
 
-		std::complex<double> Common::theodorsen_function(double k_l)
+		std::complex<double> theodorsen_function(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			return (k_l != 0 ? (hankel2_1(k_l)) / (hankel2_1(k_l) + HBTK::Constants::i() * hankel2_0(k_l)) : 1.);
 		}
 
-		std::complex<double> Common::sears_function(double k_l)
+		std::complex<double> sears_function(double k_l)
 		{
 			assert(HBTK::check_finite(k_l));
 			std::complex<double> term_11, term_12, term_2;

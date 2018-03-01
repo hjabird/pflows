@@ -23,10 +23,9 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <cmath>
 
-#include <HBTK/GaussLegendre.h>
-#include <HBTK/Integrators.h>
-#include <HBTK/Remaps.h>
 #include <HBTK/Constants.h>
+#include <HBTK/GaussLegendre.h>
+#include <HBTK/Remaps.h>
 
 #include "Common.h"
 
@@ -47,23 +46,20 @@ namespace mFlow {
 
 		const int n_p = 10;
 		std::array<double, n_p> points, weights;
-		HBTK::gauss_legendre(points, weights);
-		for (int i = 0; i < n_p; i++) {
-			HBTK::telles_cubic_remap(points[i], weights[i], 1.0);
-			HBTK::linear_remap(points[i], weights[i], -1., 1., c_l, c_t);
-		}
-
+		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(n_p);
+		quad.telles_cubic_remap(1);
+		quad.linear_remap(c_l, c_t);
 		auto L0_i1 = [&](double xi) {
 			return L0_integrand_1(f, c_l, c_t, xi);
 		};
-		term_12 = HBTK::static_integrate(L0_i1, points, weights, n_p);
+		term_12 = quad.integrate(L0_i1);
 
 		term_21 = (8.0 * HBTK::Constants::i() * k_l) / (c_t - c_l);
 
 		auto L0_i2 = [&](double xi) {
 			return L0_integrand_2(f, c_l, c_t, xi);
 		};
-		term_22 = HBTK::static_integrate(L0_i2, points, weights, n_p);
+		term_22 = quad.integrate(L0_i2);
 
 		return term_11 * term_12 - term_21 * term_22;
 	}
