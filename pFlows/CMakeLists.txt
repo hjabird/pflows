@@ -24,7 +24,9 @@ message("Boosty : " ${Boost_INCLUDE_DIR})
 include_directories(pFlows INTERFACE ${Boost_INCLUDE_DIR})
 # target_link_libraries(pFlows Boost)
 # EIGEN
-find_package(Eigen3 REQUIRED)
+# find_package(Eigen3 REQUIRED)
+message("Eigen3 : " ${EIGEN3_INCLUDE_DIR})
+include_directories(pFlows PUBLIC ${EIGEN3_INCLUDE_DIR})
 # target_link_libraries(pFlows Eigen3)
 # HBTK
 find_package(HBTK REQUIRED)

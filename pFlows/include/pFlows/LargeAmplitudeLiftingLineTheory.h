@@ -4,6 +4,7 @@
 
 #include <HBTK/CartesianPoint.h>
 #include <HBTK/CartesianPlane.h>
+#include <HBTK/CartesianRectilinearPanel.h>
 
 #include "WingProjectionGeometry.h"
 
@@ -34,8 +35,10 @@ namespace mFlow {
 		// Initialised by (once we have initialised plane positions and our wing)
 		void initialise_chord_lengths();
 
+		std::vector<std::vector<HBTK::CartesianRectilinearPanel>> panelise_wake();
+
 		std::vector<double> get_upwash();
-		std::vector<HBTK::CartesianLine3D> get_segments();
+		std::vector<HBTK::CartesianFiniteLine3D> get_segments();
 
 		bool check_matching_vortex_particles();
 	};

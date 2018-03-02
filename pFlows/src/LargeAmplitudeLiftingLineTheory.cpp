@@ -38,6 +38,69 @@ void mFlow::LargeAmplitudeLiftingLineTheory::initialise_chord_lengths()
 	}
 }
 
+std::vector<std::vector<HBTK::CartesianRectilinearPanel>> mFlow::LargeAmplitudeLiftingLineTheory::panelise_wake()
+{
+	std::vector<std::vector<HBTK::CartesianRectilinearPanel>> panels;
+	panels.resize(m_planes.size());
+	for (auto & vect : panels) vect.resize(m_vortex_particles[0].size() - 1);
+	std::vector<double> y_values(panels.size() + 1);
+	auto segments = get_segments();
+	for (int i = 0; i < panels.size(); i++) {
+		y_values[i] = segments[i].start.y;
+	}
+	y_values.back() = segments.back().end.y;
+
+	// We want to make our mesh as smooth as possible. This requires some work.
+	// Thinking of the mesh, so long as the vortex filaments go through all our 
+	// points, we're good. Except that actually it is unconstrained and could
+	// "zigzag". Here, we try and compute the least squares of the derivatives
+	// of the mesh positions.
+
+	// Calculates the i=0 displacement: (Notes #3/pg34)
+	auto calc_xm0 = [&](std::vector<double> x_values)->double {
+		std::vector<double> y_i(x_values.size());
+		for (int i = 0; i < y_i.size(); i++) {
+			y_i[i] = y_values[i + 1] - y_values[i];
+		}
+
+		double denominator = 0;
+		for (double y : y_i) denominator += 2 * 1 / (y*y);
+
+		double numerator = 0;
+		for (int i = 0; i < y_i.size(); i++) {
+			double internal_sum = 0;
+			for (int j = 0; j < i; j++) {
+				internal_sum += 2 * x_values[j] * pow(-1, -j - 1);
+			}
+			numerator += 2 * (x_values[i] - 2 * internal_sum) / (y_i[i] * y_i[i]);
+		}
+		return numerator / denominator;
+	};
+
+	// Panels all start on the lifting line:
+	panels[0][0].corners[0] = segments[0].start;
+	for (int i = 1; i < panels.size(); i++) {
+		panels[i][0].corners[0] = segments[i].start;
+		panels[i - 1][0].corners[1] = segments[i].start;
+	}
+	panels.back()[0].corners[1];
+
+	// Now interate in streamwise direction.
+	for (int i = 0; i < m_vortex_particles[0].size(); i++) {
+		// Get all the x_i, y_i values (again see notes #3pg34)
+
+
+
+		for (int j = 1; j < panels.size(); j++) {
+			
+		}
+	}
+
+
+
+	return panels;
+}
+
 std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 {
 	assert(check_matching_vortex_particles());
@@ -51,13 +114,9 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 	// Consideration of the effect of the y dir part of the vortex rings.
 	// Spanwise vortex ring consideration
 	for (int i = 0; i < n_planes; i++) {
-		HBTK::CartesianLine3D segment = spanwise_segments[i];
 		// Wakewise vortex ring consideration
 		for (int j = 0; j < n_particles_inner; j++) {
 			double vorticity = m_vortex_particles[i][j].vorticity;
-			HBTK::CartesianPoint3D vp = m_planes[i](m_vortex_particles[i][j].location);
-			HBTK::CartesianVector3D displ = vp - m_planes[i].origin();
-			HBTK::CartesianLine3D filament(segment.start + displ, segment.end + displ);
 			// The effect on each of our collocation points.
 			for (int n = 0; n < n_planes; n++) {
 				wash[n] = wash[n] + 
@@ -67,13 +126,16 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 	}
 
 	// And now consideration of the streamwise bit of vortex ring (x-dir).
-	for (int i = 0; i <= n_planes; i++) {
-		double y_pos = (i == 0 ? spanwise_segments[0].start.y : spanwise_segments[i - 1].end.y);
+	for (int i = 1; i < n_planes; i++) {
 		HBTK::CartesianLine3D segment = spanwise_segments[i];
+		// The strength of the adjacent vortex rings must computed.
+		double vorticity_sum_ym = 0;
+		double vorticity_sum_yp = 0;
 		for (int j = 0; j < n_particles_inner; j++) {
-
-
-			double vorticity = m_vortex_particles[i][j].vorticity;
+			vorticity_sum_ym += m_vortex_particles[i - 1][j].vorticity;
+			vorticity_sum_yp += m_vortex_particles[i][j].vorticity;
+			double vorticity = vorticity_sum_yp - vorticity_sum_ym;
+			
 			for (int n = 0; n < n_planes; n++) {
 				wash[n] = wash[n] +
 					HBTK::BiotSavart::unity_vel(collocation_points[n], segment) * vorticity;
@@ -84,9 +146,9 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 	return std::vector<double>();
 }
 
-std::vector<HBTK::CartesianLine3D> mFlow::LargeAmplitudeLiftingLineTheory::get_segments()
+std::vector<HBTK::CartesianFiniteLine3D> mFlow::LargeAmplitudeLiftingLineTheory::get_segments()
 {
-	std::vector<HBTK::CartesianLine3D> segments(m_planes.size());
+	std::vector<HBTK::CartesianFiniteLine3D> segments(m_planes.size());
 	double start_y = (m_planes[0].origin().y > 0 ? wing.semispan() : -wing.semispan());
 	double end_y = -start_y;
 	segments[0].start = HBTK::CartesianPoint3D({ 0, start_y, 0 });

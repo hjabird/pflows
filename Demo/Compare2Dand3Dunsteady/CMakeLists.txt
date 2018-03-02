@@ -10,7 +10,8 @@ target_link_libraries (Compare2Dand3Dunsteady pFlows)
 find_package(Boost 1.60 REQUIRED)
 # target_link_libraries(Compare2Dand3Dunsteady Boost)
 # EIGEN
-find_package(Eigen3 REQUIRED)
+# find_package(Eigen3 REQUIRED)
+include_directories(Sclavounos1987_demo PUBLIC ${EIGEN3_INCLUDE_DIR})
 # target_link_libraries(Compare2Dand3Dunsteady Eigen3) 
  
 # Visual studio ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
