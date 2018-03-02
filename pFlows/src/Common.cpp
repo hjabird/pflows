@@ -20,11 +20,15 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
+#include <cassert>
+
 #include <boost/math/special_functions/hankel.hpp>
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/special_functions/expint.hpp>
+
 #include <HBTK/Constants.h>
 #include <HBTK/Checks.h>
+
 
 namespace mFlow {
 	namespace Common {
