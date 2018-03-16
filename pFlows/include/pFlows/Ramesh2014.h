@@ -27,6 +27,10 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <tuple>
 #include <vector>
 
+#include <HBTK\CartesianVector.h>
+
+#include "VortexGroup2D.h"
+
 namespace mFlow {
 	class Ramesh2014
 	{
@@ -35,7 +39,7 @@ namespace mFlow {
 		Ramesh2014();
 		~Ramesh2014();
 
-		double free_stream_velocity;	// (no unit)
+		HBTK::CartesianVector2D free_stream_velocity;	// (no unit)
 		double semichord;				// Half the chord length.
 		double pitch_location;			// in [-1, 1]. -1->LE, 1->TE
 		// Kinematics.	Functions with respect to time.
@@ -58,17 +62,11 @@ namespace mFlow {
 		void advance_one_step();	
 
 		// Vortex Particles:
-
-		// Structure representing the state of a single vortex particle.
-		struct vortex_particle {
-			double x, y;		// Positions in inertial (global) coordinate system.
-			double vx, vy;		// Particle velocity in intertial coordinate system.
-			double vorticity;	// Vorticity represented by vortex particle.
-		};
-		// Container for vortex particles.
-		std::vector<vortex_particle> m_vortex_particles;
+		VortexGroup2D m_vortex_particles;
+		std::vector<HBTK::CartesianVector2D> m_vortex_particle_velocities;
 		// Returns number of particles in wake.
 		int number_of_particles();
+
 
 		// Number of fourier terms to represent aerofoil vorticity distribution.
 		int number_of_fourier_terms;
@@ -101,6 +99,9 @@ namespace mFlow {
 		// Get the total vorticity of all vortex particles in the wake.
 		double total_shed_vorticity();
 
+		// Compute the aerofoil's bound vorticity.
+		double bound_vorticity();
+
 	private:
 		// Compute the velocities of the vortex particles in the wake.
 		void calculate_velocities();
@@ -125,8 +126,6 @@ namespace mFlow {
 		// vorticity distribution.
 		void compute_fourier_terms();
 
-		// Compute the aerofoil's bound vorticity.
-		double bound_vorticity();
 
 		// For local pos in [-1,1] with -1->LE, 1->TE, evaluate the foil's vorticity
 		// density function. Do not evaluate at leading edge (singular).

@@ -33,7 +33,7 @@ void mFlow::LargeAmplitudeLiftingLineTheory::initialise_chord_lengths()
 	m_chord_lengths.resize(m_planes.size());
 	for (int i = 0; i < (int) m_planes.size(); i++) {
 		HBTK::CartesianPoint3D plane_origin = m_planes[i](HBTK::CartesianPoint2D({ 0,0 }));
-		double chord = wing.chord(plane_origin.y);
+		double chord = wing.chord(plane_origin.y());
 		m_chord_lengths[i] = chord;
 	}
 }
@@ -45,10 +45,10 @@ std::vector<std::vector<HBTK::CartesianRectilinearPanel>> mFlow::LargeAmplitudeL
 	for (auto & vect : panels) vect.resize(m_vortex_particles[0].size() - 1);
 	std::vector<double> y_values(panels.size() + 1);
 	auto segments = get_segments();
-	for (int i = 0; i < panels.size(); i++) {
-		y_values[i] = segments[i].start.y;
+	for (int i = 0; i < (int) panels.size(); i++) {
+		y_values[i] = segments[i].start().y();
 	}
-	y_values.back() = segments.back().end.y;
+	y_values.back() = segments.back().end().y();
 
 	// We want to make our mesh as smooth as possible. This requires some work.
 	// Thinking of the mesh, so long as the vortex filaments go through all our 
@@ -59,7 +59,7 @@ std::vector<std::vector<HBTK::CartesianRectilinearPanel>> mFlow::LargeAmplitudeL
 	// Calculates the i=0 displacement: (Notes #3/pg34)
 	auto calc_xm0 = [&](std::vector<double> x_values)->double {
 		std::vector<double> y_i(x_values.size());
-		for (int i = 0; i < y_i.size(); i++) {
+		for (int i = 0; i < (int) y_i.size(); i++) {
 			y_i[i] = y_values[i + 1] - y_values[i];
 		}
 
@@ -67,7 +67,7 @@ std::vector<std::vector<HBTK::CartesianRectilinearPanel>> mFlow::LargeAmplitudeL
 		for (double y : y_i) denominator += 2 * 1 / (y*y);
 
 		double numerator = 0;
-		for (int i = 0; i < y_i.size(); i++) {
+		for (int i = 0; i < (int)y_i.size(); i++) {
 			double internal_sum = 0;
 			for (int j = 0; j < i; j++) {
 				internal_sum += 2 * x_values[j] * pow(-1, -j - 1);
@@ -78,21 +78,42 @@ std::vector<std::vector<HBTK::CartesianRectilinearPanel>> mFlow::LargeAmplitudeL
 	};
 
 	// Panels all start on the lifting line:
-	panels[0][0].corners[0] = segments[0].start;
-	for (int i = 1; i < panels.size(); i++) {
-		panels[i][0].corners[0] = segments[i].start;
-		panels[i - 1][0].corners[1] = segments[i].start;
+	panels[0][0].corners[0] = segments[0].start();
+	for (int i = 1; i < (int) panels.size(); i++) {
+		panels[i][0].corners[0] = segments[i].start();
+		panels[i - 1][0].corners[1] = segments[i].start();
 	}
 	panels.back()[0].corners[1];
 
 	// Now interate in streamwise direction.
-	for (int i = 0; i < m_vortex_particles[0].size(); i++) {
+	for (int i = 1; i < (int) m_vortex_particles[0].size(); i++) {
+		// Calculate the shape of our line going through our vortex particles:
 		// Get all the x_i, y_i values (again see notes #3pg34)
+		std::vector<double> x_i, z_i, y_i;
+		for (int j = 0; j < (int) m_planes.size(); j++) {
+			x_i[j] = m_vortex_particles[j][i].location.x() - m_vortex_particles[0][i].location.x();
+			z_i[j] = m_vortex_particles[j][i].location.y() - m_vortex_particles[0][i].location.y();
+		}
+		double x_prime_0, z_prime_0;
+		x_prime_0 = calc_xm0(x_i);
+		z_prime_0 = calc_xm0(z_i);
+
+		HBTK::CartesianPoint3D pm, pp;
+		pm.y() = y_values[0];
+		pm.x() = (x_i[0] - (y_values[1] - y_values[0]) * x_prime_0 / 2)
+			+ m_planes[0](m_vortex_particles[0][i].location).x();
+		pm.z() = (z_i[0] - (y_values[1] - y_values[0]) * z_prime_0 / 2)
+			+ m_planes[0](m_vortex_particles[0][i].location).z();;
+		for (int j = 0; j < (int)panels[i].size(); j++) {
+			pp.y() = y_values[j + 1];
+			pp.x() = (2 * x_i[j] - pm.x())
+				+ m_planes[0](m_vortex_particles[0][i].location).x();
+			pp.z() = (2 * z_i[j] - pm.z())
+				+ m_planes[0](m_vortex_particles[0][i].location).z();
 
 
 
-		for (int j = 1; j < panels.size(); j++) {
-			
+			pm = pp;
 		}
 	}
 
@@ -109,7 +130,7 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 	std::vector<HBTK::CartesianVector3D> wash(n_planes);
 	std::vector<HBTK::CartesianPoint3D> collocation_points(n_planes);
 	for (int i = 0; i < n_planes; i++) { collocation_points[i] = m_planes[i].origin(); }
-	std::vector<HBTK::CartesianLine3D> spanwise_segments = get_segments();
+	std::vector<HBTK::CartesianFiniteLine3D> spanwise_segments = get_segments();
 
 	// Consideration of the effect of the y dir part of the vortex rings.
 	// Spanwise vortex ring consideration
@@ -119,15 +140,15 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 			double vorticity = m_vortex_particles[i][j].vorticity;
 			// The effect on each of our collocation points.
 			for (int n = 0; n < n_planes; n++) {
-				wash[n] = wash[n] + 
-					HBTK::BiotSavart::unity_vel(collocation_points[n], filament) * vorticity;
+				//wash[n] = wash[n] + 
+				//	HBTK::BiotSavart::unity_vel(collocation_points[n], filament) * vorticity;
 			}
 		}
 	}
 
 	// And now consideration of the streamwise bit of vortex ring (x-dir).
 	for (int i = 1; i < n_planes; i++) {
-		HBTK::CartesianLine3D segment = spanwise_segments[i];
+		HBTK::CartesianFiniteLine3D segment = spanwise_segments[i];
 		// The strength of the adjacent vortex rings must computed.
 		double vorticity_sum_ym = 0;
 		double vorticity_sum_yp = 0;
@@ -149,16 +170,16 @@ std::vector<double> mFlow::LargeAmplitudeLiftingLineTheory::get_upwash()
 std::vector<HBTK::CartesianFiniteLine3D> mFlow::LargeAmplitudeLiftingLineTheory::get_segments()
 {
 	std::vector<HBTK::CartesianFiniteLine3D> segments(m_planes.size());
-	double start_y = (m_planes[0].origin().y > 0 ? wing.semispan() : -wing.semispan());
+	double start_y = (m_planes[0].origin().y() > 0 ? wing.semispan() : -wing.semispan());
 	double end_y = -start_y;
-	segments[0].start = HBTK::CartesianPoint3D({ 0, start_y, 0 });
-	segments.back().end = HBTK::CartesianPoint3D({ 0, end_y, 0 });
+	segments[0].start() = HBTK::CartesianPoint3D({ 0, start_y, 0 });
+	segments.back().end() = HBTK::CartesianPoint3D({ 0, end_y, 0 });
 	for (int i = 1; i < (int)segments.size(); i++) {
 		HBTK::CartesianPoint3D last_orig = m_planes[i-1].origin();
 		HBTK::CartesianPoint3D next_orig = m_planes[i].origin();
 		HBTK::CartesianPoint3D midpoint = last_orig + (next_orig - last_orig) * 0.5;
-		segments[i - 1].end = midpoint;
-		segments[i].start = midpoint;
+		segments[i - 1].end() = midpoint;
+		segments[i].start() = midpoint;
 	}
 	return segments;
 }

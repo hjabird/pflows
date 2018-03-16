@@ -23,8 +23,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <cmath>
 #include <cassert>
 
-#include "../../HBTK/HBTK/Integrators.h"
-#include "../../HBTK/HBTK/Constants.h"
+#include <HBTK/Integrators.h>
+#include <HBTK/Constants.h>
 
 template <typename TCoeffStore>
 class ThinFoil 
