@@ -52,6 +52,9 @@ namespace mFlow {
 		std::function<double(double)> camber_line;	// Defined in [-1, 1]
 		std::function<double(double)> camber_slope;	// Defined in [-1, 1]
 
+		// Should the wake convect itself? Deafault is yes.
+		bool wake_self_convection;
+
 		double time;				// Current simulation time value.
 		double delta_t;				// time = time + delta_t for time stepping.
 		// Initialises data structs. Throws exception for bad input values:

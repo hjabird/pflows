@@ -45,7 +45,6 @@ namespace mFlow {
 		term_11 = -4.0 * Common::theodorsen_function(k_l);
 
 		const int n_p = 10;
-		std::array<double, n_p> points, weights;
 		HBTK::StaticQuadrature quad = HBTK::gauss_legendre(n_p);
 		quad.telles_cubic_remap(1);
 		quad.linear_remap(c_l, c_t);

@@ -1,26 +1,24 @@
 cmake_minimum_required(VERSION 3.1)
 
 # Target
-add_executable (PlanarWakeULLT PlanarWakeULLT/PlanarWakeULLT.cpp)
+add_executable (PlanarWakeULLT_demo PlanarWakeULLT_demo/PlanarWakeULLT_demo.cpp)
 
 # Library dependencies ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-target_include_directories (PlanarWakeULLT PRIVATE "${PROJECT_SOURCE_DIR}/pFlows/include/pFlows") 
-target_link_libraries (PlanarWakeULLT pFlows)
+target_include_directories (PlanarWakeULLT_demo PRIVATE "${PROJECT_SOURCE_DIR}/pFlows/include/pFlows") 
+target_link_libraries (PlanarWakeULLT_demo pFlows)
 # BOOST
 find_package(Boost 1.60 REQUIRED)
-# target_link_libraries(Sclavounos1987_demo Boost)
 # EIGEN
-find_package(Eigen3 REQUIRED)
-# target_link_libraries(Sclavounos1987_demo Eigen3) 
+find_package(Eigen3 REQUIRED) 
  
 # Visual studio ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # VS folders.
-set_property(TARGET PlanarWakeULLT PROPERTY FOLDER "executables")
+set_property(TARGET PlanarWakeULLT_demo PROPERTY FOLDER "executables")
 
 # Destinations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-set_target_properties(PlanarWakeULLT PROPERTIES
+set_target_properties (PlanarWakeULLT_demo PROPERTIES
                       RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 # INSTALL ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-install (TARGETS PlanarWakeULLT
+install (TARGETS PlanarWakeULLT_demo
          RUNTIME DESTINATION bin)

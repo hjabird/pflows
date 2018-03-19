@@ -38,7 +38,8 @@ mFlow::Ramesh2014::Ramesh2014()
 	delta_t(0),
 	semichord(0),
 	pitch_location(0),
-	number_of_fourier_terms(0)
+	number_of_fourier_terms(0),
+	wake_self_convection(true)
 {
 }
 
@@ -48,18 +49,6 @@ mFlow::Ramesh2014::~Ramesh2014()
 
 void mFlow::Ramesh2014::initialise()
 {
-	// Fourier terms:
-	if (number_of_fourier_terms == 0) {
-		throw std::domain_error("number_of_fourier_terms: "
-			"number of fourier terms for Ramesh2014 method should be more than 2. " 
-			__FILE__ ":"  + std::to_string(__LINE__));
-	}
-	m_fourier_terms = HBTK::uniform(0.0, number_of_fourier_terms);
-	time -= delta_t;
-	compute_fourier_terms();
-	time += delta_t;
-	m_previous_fourier_terms = m_fourier_terms;
-
 	// Timestep of zero goes nowhere!
 	if (delta_t <= 0) {
 		throw std::domain_error("delta_t: "
@@ -80,6 +69,33 @@ void mFlow::Ramesh2014::initialise()
 			"Time value for Ramesh2014 is not finite. Cannot use non-finite"
 			"values for time. " __FILE__ ":" + std::to_string(__LINE__));
 	}
+
+	// If no camber line and slope've been set, user probably wants a flat plate.
+	// If not both, they've been a muppet.
+	if (!camber_line || !camber_slope) {
+		if (camber_line || camber_slope) {
+			throw std::domain_error("Ramesh2014: "
+				"Only one of the camber line and camber slope have been set - not both. "
+				"If neither are set, a flat plate is assumed. Otherwise, both must be "
+				"set. " __FILE__ " : " + std::to_string(__LINE__));
+		}
+		else {
+			camber_line = [](double x)->double { return 0; };
+			camber_slope = [](double x)->double { return 0; };
+		}
+	}
+
+	// Fourier terms:
+	if (number_of_fourier_terms == 0) {
+		throw std::domain_error("number_of_fourier_terms: "
+			"number of fourier terms for Ramesh2014 method should be more than 2. " 
+			__FILE__ ":"  + std::to_string(__LINE__));
+	}
+	m_fourier_terms = HBTK::uniform(0.0, number_of_fourier_terms);
+	time -= delta_t;
+	compute_fourier_terms();
+	time += delta_t;
+	m_previous_fourier_terms = m_fourier_terms;
 }
 
 void mFlow::Ramesh2014::advance_one_step()
@@ -113,7 +129,7 @@ void mFlow::Ramesh2014::calculate_velocities()
 	}
 
 	// Velocities induced on particles by other particles (N-Body problem)
-	{
+	if(wake_self_convection){
 		double vc_size = vortex_core_size();
 		for (int i = 0; i < number_of_particles(); i++) {
 			double xi, yi;	// Cartesian coordinates of ith particle.

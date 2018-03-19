@@ -12,20 +12,12 @@
 #include "WingProjectionGeometry.h"
 
 namespace mFlow {
-	class LUALLT_planar_wake {
+	class PlanarWakeULLT {
 	public:
-		LUALLT_planar_wake();
-		~LUALLT_planar_wake();
+		PlanarWakeULLT();
+		~PlanarWakeULLT();
 
-		// Kinematics:
-		std::function<double(double)> wing_Z;
-		std::function<double(double)> wing_dZdt;
-		std::function<double(double)> wing_AoA;
-		std::function<double(double)> wing_dAoAdt;
-		double pitch_location;
-		// Time control:
-		double delta_t;
-		double time;
+		// Kinematics and time control is defined within inner solutions.
 
 		// Wing projection on plane:
 		mFlow::WingProjectionGeometry wing_projection;
@@ -34,24 +26,17 @@ namespace mFlow {
 		HBTK::CartesianPlane wake_plane() const;
 
 		// Inner solution planes:
-		int number_of_inner_solution_planes;
-		std::vector<HBTK::CartesianPlane> inner_solution_planes();
-		std::vector<mFlow::VortexGroup2D> inner_solution_vortices();
+		std::vector<HBTK::CartesianPlane> inner_solution_planes;
+		std::vector<mFlow::Ramesh2014> inner_solutions;
 
 		// Continue one time step
 		void advance_one_step();
+		void initialise();
 
-		// Compute coefficients for entire wing:
-		double compute_lift_coefficient();
-		double compute_drag_coefficient();
-		double compute_moment_coeffient();
+		// Who would want Quasi-steady? Default false.
+		bool quasi_steady;
 
 	private:
-		// Inner solutions.
-		// We expect them to be ordered with increasing y position.
-		std::vector<Ramesh2014> m_inner_solutions;
-		std::vector<HBTK::CartesianPlane> m_inner_solution_planes;
-
 		// Wake
 		PlanarVortexRingLattice generate_planar_wake_object();
 

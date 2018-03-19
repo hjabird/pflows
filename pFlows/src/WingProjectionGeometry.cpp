@@ -32,6 +32,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace mFlow {
 	WingProjectionGeometry::WingProjectionGeometry()
+		: span(-1)
 	{
 		invalidate_calculations();
 	}
@@ -100,6 +101,7 @@ namespace mFlow {
 
 	const double WingProjectionGeometry::semispan()
 	{
+		assert(span > 0);
 		return span / 2;
 	}
 
@@ -123,6 +125,7 @@ namespace mFlow {
 
 	double WingProjectionGeometry::aspect_ratio()
 	{
+		assert(span > 0);
 		if (!m_valid_aspect_ratio)
 		{
 			calculate_aspect_ratio();
@@ -151,6 +154,7 @@ namespace mFlow {
 
 	void WingProjectionGeometry::calculate_standard_chord()
 	{
+		assert(span > 0);
 		m_standard_chord = area() / span;
 		return;
 	}
@@ -170,6 +174,7 @@ namespace mFlow {
 
 	void WingProjectionGeometry::calculate_aspect_ratio()
 	{
+		assert(span >= 0);
 		m_aspect_ratio = span * span / area();
 		m_valid_aspect_ratio = true;
 		return;

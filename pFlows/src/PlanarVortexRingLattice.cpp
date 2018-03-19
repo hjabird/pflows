@@ -23,18 +23,30 @@ mFlow::PlanarVortexRingLattice::~PlanarVortexRingLattice()
 {
 }
 
-double mFlow::PlanarVortexRingLattice::patch_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position)
+double mFlow::PlanarVortexRingLattice::downwash(const HBTK::CartesianPoint2D & measurement_position)
 {
 	return patch_downwash_inclusive(measurement_position, 0, m_extent_x, 0, m_extent_y);
 }
 
-double mFlow::PlanarVortexRingLattice::patch_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position, 
+double mFlow::PlanarVortexRingLattice::patch_downwash_inclusive(
+	const HBTK::CartesianPoint2D & measurement_position, 
 	int min_x, int max_x, int min_y, int max_y)
 {
-	assert(min_x > 0 && min_x <= max_x && max_x < m_extent_x);
-	assert(min_y > 0 && min_y <= max_y && max_y < m_extent_y);
 	double wash = 0;
-	// Due to the x direction filaments
+	wash += patch_x_filament_downwash_inclusive(measurement_position,
+		min_x, max_x, min_y, max_y);
+	wash += patch_y_filament_downwash_inclusive(measurement_position,
+		min_x, max_x, min_y, max_y);
+	return wash;
+}
+
+double mFlow::PlanarVortexRingLattice::patch_x_filament_downwash_inclusive(
+	const HBTK::CartesianPoint2D & measurement_position, 
+	int min_x, int max_x, int min_y, int max_y)
+{
+	assert(min_x >= 0 && min_x <= max_x && max_x <= m_extent_x);
+	assert(min_y >= 0 && min_y <= max_y && max_y <= m_extent_y);
+	double wash = 0;
 	for (int ix = min_x; ix < max_x; ix++) {
 		for (int iy = min_y; iy <= max_y; iy++) {
 			HBTK::CartesianFiniteLine2D filament = edge_x(ix, iy);
@@ -42,7 +54,17 @@ double mFlow::PlanarVortexRingLattice::patch_downwash_inclusive(const HBTK::Cart
 			wash += filament_downwash(filament, strength, measurement_position);
 		}
 	}
-	// Due to the y direction filaments
+	assert(HBTK::check_finite(wash));
+	return wash;
+}
+
+double mFlow::PlanarVortexRingLattice::patch_y_filament_downwash_inclusive(
+	const HBTK::CartesianPoint2D & measurement_position, 
+	int min_x, int max_x, int min_y, int max_y)
+{
+	assert(min_x >= 0 && min_x <= max_x && max_x <= m_extent_x);
+	assert(min_y >= 0 && min_y <= max_y && max_y <= m_extent_y);
+	double wash = 0;
 	for (int ix = min_x; ix <= max_x; ix++) {
 		for (int iy = min_y; iy < max_y; iy++) {
 			HBTK::CartesianFiniteLine2D filament = edge_y(ix, iy);
@@ -136,14 +158,19 @@ std::array<int, 2> mFlow::PlanarVortexRingLattice::extent() const
 	return std::array<int, 2>({ m_extent_x, m_extent_y });
 }
 
+int mFlow::PlanarVortexRingLattice::size() const
+{
+	return m_extent_x * m_extent_y;
+}
+
 double mFlow::PlanarVortexRingLattice::filament_downwash(
 	const HBTK::CartesianFiniteLine2D & filament, 
 	double strength, 
 	const HBTK::CartesianPoint2D & measurement_point)
 {
 	HBTK::CartesianVector2D r1, r2;
-	r1 = filament.start() - HBTK::CartesianPoint2D::origin();
-	r2 = filament.end() - HBTK::CartesianPoint2D::origin();
+	r1 = filament.start() - measurement_point;
+	r2 = filament.end() - measurement_point;
 	HBTK::CartesianVector2D r0 = r1 - r2;
 
 	double term_1, term_2, term_21, term_22;

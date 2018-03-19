@@ -13,14 +13,18 @@ namespace mFlow {
 
 		// Compute the downwash at a point in the plane due to the 
 		// entire lattice.
-		double patch_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position);
+		double downwash(const HBTK::CartesianPoint2D & measurement_position);
 		// Compute downwash due to a patch in the lattice. The rings adjacent to 
 		// patch influence the vorticity of the patch edge filaments.
 		double patch_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position,
 			int min_x, int max_x, int min_y, int max_y);
+		double patch_x_filament_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position,
+			int min_x, int max_x, int min_y, int max_y);
+		double patch_y_filament_downwash_inclusive(const HBTK::CartesianPoint2D & measurement_position,
+			int min_x, int max_x, int min_y, int max_y);
 
 		// Methods to extract vortex filaments:
-		// For index in [0, nx), [0, ny]
+		// For index in [0, nx), [0, ny] 
 		HBTK::CartesianFiniteLine2D edge_x(int index_x, int index_y);
 		// For index in [0, nx), [0, ny]
 		double edge_x_vorticity(int index_x, int index_y);
@@ -37,6 +41,8 @@ namespace mFlow {
 		void vertex(int index_x, int index_y, HBTK::CartesianPoint2D position);
 		
 		std::array<int, 2> extent() const;
+		int size() const;
+
 	private:
 		int m_extent_x;
 		int m_extent_y;
