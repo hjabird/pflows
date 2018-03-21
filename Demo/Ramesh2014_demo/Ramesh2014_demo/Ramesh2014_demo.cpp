@@ -27,14 +27,14 @@ int main()
 
 	sim.semichord = 0.5;
 	sim.pitch_location = 0;
-	sim.delta_t = 0.01;
-	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 1 });
-	sim.foil_AoA = [](double t) { return 0.0; };
+	sim.delta_t = 0.1;
+	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 0 });
+	sim.foil_AoA = [](double t) { return 0.05; };
 	sim.foil_dAoAdt = [](double t) { return 0.0; };
 	sim.foil_Z = [](double t) { return 0; };
 	sim.foil_dZdt = [](double t) { return 0; };
-	sim.camber_line = [&](double x) { return camber((x + 1) / 2);  };
-	sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
+	sim.camber_line = [&](double x) { return 0.0; }; // camber((x + 1) / 2); };
+	sim.camber_slope = [&](double x) { return 0.0; }; //camber.derivative((x + 1) / 2);  };
 
 	sim.number_of_fourier_terms = 8;
 	sim.initialise();
@@ -52,7 +52,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	for (int i = 0; i < 300; i++) {
+	for (int i = 0; i < 500; i++) {
 		sim.advance_one_step();
 
 		step_data["Step"].emplace_back(i+1);

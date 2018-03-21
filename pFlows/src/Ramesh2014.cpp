@@ -541,7 +541,7 @@ double mFlow::Ramesh2014::vortex_core_size() const
 std::pair<double, double> mFlow::Ramesh2014::unity_vortex_blob_induced_vel(
 	double x_mes, double y_mes, double x_vor, double y_vor, double vortex_size)
 {
-	assert((x_mes != x_vor) && (y_mes != y_vor));
+	assert((x_mes != x_vor) || (y_mes != y_vor));
 	double u, v, denominator;
 	denominator = sqrt(pow(pow(x_mes - x_vor, 2) + pow(y_mes - y_vor, 2), 2)
 		+ pow(vortex_size, 4)) * 2. * HBTK::Constants::pi();

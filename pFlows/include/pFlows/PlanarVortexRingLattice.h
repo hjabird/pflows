@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <HBTK/CartesianFiniteLine.h>
 #include <HBTK/CartesianPoint.h>
 #include <HBTK/CartesianRectilinearPanel.h>
@@ -42,6 +44,8 @@ namespace mFlow {
 		
 		std::array<int, 2> extent() const;
 		int size() const;
+
+		void save_to_vtk(std::ostream & out_stream);
 
 	private:
 		int m_extent_x;

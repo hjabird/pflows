@@ -15,8 +15,6 @@ int main()
 	std::cout << "Yan2014 Demo. (c) HJAB\n";
 	mFlow::Yan2014 sim;
 
-	HBTK::Vtk::VtkWriter fo;
-
 	sim.semichord = 1;
 	sim.delta_t = 0.01;
 	sim.free_stream_velocity = 1;

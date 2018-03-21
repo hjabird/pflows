@@ -3,9 +3,11 @@
 
 #include <cassert>
 
+#include <HBTK/CartesianPlane.h>
 #include <HBTK/CartesianVector.h>
 #include <HBTK/Checks.h>
 #include <HBTK/Constants.h>
+#include <HBTK/VtkLegacyWriter.h>
 
 mFlow::PlanarVortexRingLattice::PlanarVortexRingLattice(int x_extent, int y_extent)
 	: m_geometry(),
@@ -161,6 +163,44 @@ std::array<int, 2> mFlow::PlanarVortexRingLattice::extent() const
 int mFlow::PlanarVortexRingLattice::size() const
 {
 	return m_extent_x * m_extent_y;
+}
+
+void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
+{
+	HBTK::Vtk::VtkLegacyWriter writer;
+	writer.file_description = "Wake";
+	HBTK::StructuredMeshBlock3D mesh3d;
+	mesh3d.set_extent({ m_geometry.extent()[0], m_geometry.extent()[1], 1 });
+	HBTK::StructuredBlockIndexerND<3> indexer(mesh3d.extent());
+	int size = indexer.size();
+	HBTK::CartesianPlane plane(
+		HBTK::CartesianPoint3D({ 0, 0, 0 }),
+		HBTK::CartesianPoint3D({ 1, 0, 0 }),
+		HBTK::CartesianPoint3D({ 0, 1, 0 })
+		);
+	for (int i = 0; i < size; i++) {
+		auto idx3d = indexer.linear_index(i);
+		std::array<int, 2> idx2d = { idx3d[0], idx3d[1] };
+		HBTK::CartesianPoint2D point2d = m_geometry.value(idx2d);
+		HBTK::CartesianPoint3D point3d = plane.evaluate(point2d);
+		mesh3d.set_coord(idx3d, point3d.as_array());
+	}
+	HBTK::StructuredValueBlockND<3, double> ring_3d;
+	ring_3d.extent(indexer.extents());
+	writer.open_file(&out_stream);
+	writer.write_mesh(mesh3d);
+	for (int i = 0; i < size; i++) {
+		auto idx3d = indexer.linear_index(i);
+		if(idx3d[0] < m_extent_x) ring_3d[idx3d] = edge_x_vorticity(idx3d[0], idx3d[1]);
+		else ring_3d[idx3d] = edge_x_vorticity(idx3d[0] - 1, idx3d[1]);
+	}
+	writer.append_structured_scalar_point_data(ring_3d, "VorticityXCheating");
+	for (int i = 0; i < size; i++) {
+		auto idx3d = indexer.linear_index(i);
+		if (idx3d[1] < m_extent_y) ring_3d[idx3d] = edge_y_vorticity(idx3d[0], idx3d[1]);
+		else ring_3d[idx3d] = edge_y_vorticity(idx3d[0], idx3d[1] - 1);
+	}
+	writer.append_structured_scalar_point_data(ring_3d, "VorticityYCheating");
 }
 
 double mFlow::PlanarVortexRingLattice::filament_downwash(

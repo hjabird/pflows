@@ -2,6 +2,7 @@
 
 
 #include <functional>
+#include <string>
 #include <vector>
 
 #include <HBTK/CartesianPlane.h>
@@ -36,8 +37,15 @@ namespace mFlow {
 		// Who would want Quasi-steady? Default false.
 		bool quasi_steady;
 
+		// Save wake to file:
+		void wake_to_vtk(std::ostream & out_stream);
+
+		// Compute the lift coefficient
+		double compute_lift_coefficient();
+
 	private:
-		// Wake
+		// Wake:
+		// Wing is on the x (idx0) = 0 line.
 		PlanarVortexRingLattice generate_planar_wake_object();
 
 		// Compute the downwash on each inner solution due to the wake and 

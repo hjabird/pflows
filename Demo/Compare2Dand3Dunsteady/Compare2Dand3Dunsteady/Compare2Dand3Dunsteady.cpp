@@ -16,10 +16,10 @@ int main()
 {	
 	std::cout << "Compare 2D / 3D unsteady sinusiodal. \n(c) HJA Bird 2018\n\n";
 
-	double span = 0.3048;
+	double span = 1;
 	double aspect_ratio = 4;
-	double heave_amplitude = 0.00381;
-	double pitch_amplitude = 0.09477;		// radians
+	double heave_amplitude = 0.174;
+	double pitch_amplitude = 0.0;		// radians
 	double phase_offset = 0.32097;		// radians
 	double frequency = 103.3;		// Angular frequency (radians / s)
 	double period = 2 * HBTK::Constants::pi() / frequency;
@@ -30,7 +30,7 @@ int main()
 
 	mFlow::WingProjectionGeometry wing;
 	mFlow::WingGenerators::rectangular(wing, span, aspect_ratio);
-
+	/*
 	mFlow::Sclavounos1987 sclavounos;
 	sclavounos.wing = wing;
 	sclavounos.j = 3;
@@ -41,7 +41,7 @@ int main()
 	auto pitch_complex = heave_amplitude * sclavounos.compute_equivalent_pitch_rectangular_wing(wing.semichord(0)*pitch_location);
 	pitch_amplitude = - abs(pitch_complex);
 	phase_offset = std::arg(pitch_complex);
-	
+	*/
 	sclavounos_cl = mFlow::Sclavounos1987::conventional_lift_coefficient(heave_amplitude, pitch_amplitude, phase_offset,
 		frequency, wing, mFlow::rectangular_added_mass_coefficient(span, wing.chord(0)), wing.semichord(0)*pitch_location);
 
@@ -79,14 +79,15 @@ int main()
 
 	HBTK::GnuPlot plot;
 	plot.replot_off();
-	plot.title("Lift against time: frequency = " + std::to_string(frequency) + ",\\n span_reduced_frequency = " +
-		std::to_string(span_reduced_frequency) + ", chord_reduced_frequency = " + std::to_string(chord_reduced_frequency));
+	plot.title("Lift against time: frequency = " + std::to_string(frequency) + ",\\n span reduced frequency = " +
+		std::to_string(span_reduced_frequency) + ", chord reduced frequency = " + std::to_string(chord_reduced_frequency));
 	plot.xlabel("Time (s)");
 	plot.ylabel("C_l");
 	plot.legend({ "QSTAT", "Theodorsen", "Sclavounos" });
 	mFlow::Plotting::plot_complex_over_period(qstat_cl, period, plot, "r-");
 	mFlow::Plotting::plot_complex_over_period(theodorsen_cl, period, plot, "b-");
 	mFlow::Plotting::plot_complex_over_period(sclavounos_cl, period, plot, "k-");
+	plot.axis_equal_off();
 	plot.replot();
 
     return 0;

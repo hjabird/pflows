@@ -6,6 +6,7 @@
 #include <HBTK/AerofoilGenerators.h>
 #include <HBTK/AerofoilGeometry.h>
 #include <HBTK/CartesianPoint.h>
+#include <HBTK/Constants.h>
 #include <HBTK/CsvWriter.h>
 #include <HBTK/DoubleTable.h>
 #include <HBTK/Paths.h>
@@ -23,7 +24,8 @@ int main(int argc, char* argv[]) {
 	std::cout << "Exe path: " << HBTK::Paths::executable_path() << "\n";
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
-	mFlow::WingGenerators::rectangular(wing, 1, 10);
+	double aspect_ratio = 4;
+	mFlow::WingGenerators::rectangular(wing, 1, aspect_ratio);
 	HBTK::AerofoilGeometry foil = HBTK::AerofoilGenerators::naca_four_digit("0012");
 
 	mFlow::PlanarWakeULLT sim;
@@ -32,14 +34,14 @@ int main(int argc, char* argv[]) {
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.pitch_location = 0.0;
-	inner_sol.delta_t = 0.05;
-	inner_sol.free_stream_velocity.x() = 1. / 10;
-	inner_sol.foil_AoA = [](double t)->double { return 0.08727; }; // 5 degrees
+	inner_sol.delta_t = 0.25;
+	inner_sol.free_stream_velocity.x() = 1. / aspect_ratio;
+	inner_sol.foil_AoA = [](double t)->double { return 0.0;  };
 	inner_sol.foil_dAoAdt = [](double t)->double {return 0.0; };
-	inner_sol.foil_Z = [](double t)->double {return 0.0; };
-	inner_sol.foil_dZdt = [](double t)->double {return 0.0; };
-	inner_sol.number_of_fourier_terms = 3;
-	inner_sol.wake_self_convection = false;
+	inner_sol.foil_Z = [](double t)->double {return 0.174 * sin(t * 0.1 * HBTK::Constants::pi()); };
+	inner_sol.foil_dZdt = [](double t)->double {return  0.174 * 0.1 * HBTK::Constants::pi() * cos(t * 0.1 * HBTK::Constants::pi()); };
+	inner_sol.number_of_fourier_terms = 8;
+	inner_sol.wake_self_convection = true;
 
 	int num_inner = 20;
 	for (int i = 0; i < num_inner; i++) {
@@ -56,6 +58,7 @@ int main(int argc, char* argv[]) {
 	HBTK::DoubleTable table_bv, table_dw;
 	table_bv.add_column("Time");
 	table_bv.add_column("Step");
+	table_bv.add_column("Cl");
 	table_dw.add_column("Time");
 	table_dw.add_column("Step");
 	for (int i = 0; i < (int)sim.inner_solutions.size(); i++) {
@@ -64,18 +67,20 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 60;
+	int n_steps = 100;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
 		table_bv[0].push_back(i * sim.inner_solutions[0].delta_t);
 		table_bv[1].push_back(i);
+		table_bv[2].push_back(sim.compute_lift_coefficient());
 		table_dw[0].push_back(i * sim.inner_solutions[0].delta_t);
 		table_dw[1].push_back(i);
 		for (int ic = 0; ic < (int)sim.inner_solutions.size(); ic++) {
-			table_bv[ic + 2].push_back(sim.inner_solutions[ic].bound_vorticity());
+			table_bv[ic + 3].push_back(sim.inner_solutions[ic].bound_vorticity());
 			table_dw[ic + 2].push_back(sim.inner_solutions[ic].free_stream_velocity.y());
 		}
+		sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
 	}
 	std::cout << "\n";
 	HBTK::CsvWriter csv_writer;

@@ -40,6 +40,28 @@ void mFlow::PlanarWakeULLT::initialise()
 }
 
 
+void mFlow::PlanarWakeULLT::wake_to_vtk(std::ostream &out_stream)
+{
+	auto wake = generate_planar_wake_object();
+	wake.save_to_vtk(out_stream);
+}
+
+double mFlow::PlanarWakeULLT::compute_lift_coefficient()
+{
+	double coeff = 0;
+	auto segments = segment_span_by_inner_solution();
+	for (int i = 0; i < (int)inner_solutions.size(); i++) {
+		double chord = wing_projection.chord(inner_solution_planes[i].origin().y());
+		double section_width = segments[i].vector().magnitude();
+		double cl_inner, cd_inner;
+		std::tie(cl_inner, cd_inner) = inner_solutions[i].aerofoil_lift_and_drag_coefficients();
+		coeff += cl_inner * section_width * chord;
+	}
+	coeff /= wing_projection.area();
+	assert(HBTK::check_finite(coeff));
+	return coeff;
+}
+
 mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_object()
 {
 	PlanarVortexRingLattice wake(num_vortex_particles_per_inner_solution(),
@@ -56,23 +78,23 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	for (auto & plane : inner_solution_planes) inner_solution_y_positions.push_back(plane.origin().y());
 	// Wing geometry:
 	for (int i = 0; i < (int)y_positions.size(); i++) {
-		wake.vertex(0, i, HBTK::CartesianPoint2D({ 0, y_positions[i] }));
+		wake.vertex(0, i, 
+			HBTK::CartesianPoint2D({ wing_projection.trailing_edge_X(y_positions[i]), y_positions[i] })
+		);
 	}
 	// Wake geometry:
 	int num_wake_points = num_vortex_particles_per_inner_solution();
 	std::vector<double> vortex_x_positions(inner_solution_y_positions.size());
 	for (int ix = num_wake_points - 1; ix >= 0 ; ix--) {
 		for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
-			vortex_x_positions[iy] = inner_solutions[iy].m_vortex_particles[ix].position.x()
-				- inner_solution_planes[iy](
-					HBTK::CartesianPoint2D({ wing_projection.semichord(y_positions[iy]), 0 })).x();
+			vortex_x_positions[iy] = inner_solutions[iy].m_vortex_particles[ix].position.x();
 		}
 		// We use cubic spline interpolation. Edges might be dodgy...
 		HBTK::CubicSpline1D line_spline(
 			inner_solution_y_positions,
 			vortex_x_positions);
 		for (int iy = 0; iy < (int)y_positions.size(); iy++) {
-			wake.vertex(ix + 1, iy, 
+			wake.vertex(num_wake_points - ix, iy,
 				HBTK::CartesianPoint2D({ line_spline(y_positions[iy]), y_positions[iy] }));
 		}
 	}
@@ -82,10 +104,10 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	}
 	for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
 		double vorticity_acc = inner_solutions[iy].bound_vorticity();
-		for (int ix = 0; ix < inner_solutions[iy].m_vortex_particles.size() - 1; ix++) {
-			// Last vortex is correct due to Kelvin condition.
+		for (int ix = num_wake_points - 1; ix > 0 ; ix--) {
+			// First shed vortex is correct due to Kelvin condition (corresponds to ix=0)
 			vorticity_acc += inner_solutions[iy].m_vortex_particles[ix].vorticity;
-			wake.ring_strength(ix + 1, iy, vorticity_acc);
+			wake.ring_strength(num_wake_points - ix, iy, vorticity_acc);
 		}
 	}
 	return wake;
