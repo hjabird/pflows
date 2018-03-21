@@ -26,11 +26,11 @@ int main(int argc, char* argv[]) {
 	mFlow::WingProjectionGeometry wing;
 	double aspect_ratio = 4;
 	mFlow::WingGenerators::rectangular(wing, 1, aspect_ratio);
-	HBTK::AerofoilGeometry foil = HBTK::AerofoilGenerators::naca_four_digit("0012");
 
 	mFlow::PlanarWakeULLT sim;
 	sim.wing_projection = wing;
-	sim.quasi_steady = true;
+	sim.quasi_steady = false;
+	int write_vtk_every = 25;
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.pitch_location = 0.0;
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 100;
+	int n_steps = 500;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
@@ -80,7 +80,9 @@ int main(int argc, char* argv[]) {
 			table_bv[ic + 3].push_back(sim.inner_solutions[ic].bound_vorticity());
 			table_dw[ic + 2].push_back(sim.inner_solutions[ic].free_stream_velocity.y());
 		}
-		sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
+		if (i%write_vtk_every == 0) {
+			sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
+		}
 	}
 	std::cout << "\n";
 	HBTK::CsvWriter csv_writer;
