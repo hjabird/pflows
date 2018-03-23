@@ -7,7 +7,7 @@ add_executable (PlanarWakeULLT_demo PlanarWakeULLT_demo/PlanarWakeULLT_demo.cpp)
 target_include_directories (PlanarWakeULLT_demo PRIVATE "${PROJECT_SOURCE_DIR}/pFlows/include/pFlows") 
 target_link_libraries (PlanarWakeULLT_demo pFlows)
 # BOOST
-find_package(Boost 1.60 REQUIRED)
+find_package(Boost 1.50 REQUIRED)
 # EIGEN
 find_package(Eigen3 REQUIRED) 
  

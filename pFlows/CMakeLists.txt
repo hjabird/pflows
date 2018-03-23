@@ -19,7 +19,7 @@ add_library(pFlows STATIC ${pFlows_INCLUDE}
 
 # External library dependencies ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOOST
-find_package(Boost 1.60 REQUIRED)
+find_package(Boost 1.53 REQUIRED)
 message("Boosty : " ${Boost_INCLUDE_DIR})
 include_directories(pFlows INTERFACE ${Boost_INCLUDE_DIR})
 # target_link_libraries(pFlows Boost)
