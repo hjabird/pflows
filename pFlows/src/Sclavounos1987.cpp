@@ -418,7 +418,7 @@ namespace mFlow {
 
 		set_collocation_points();
 		m_solution.resize(number_of_terms);
-		auto gamma_matrix = gamma_terms_matrix();
+		Eigen::MatrixXd gamma_matrix = gamma_terms_matrix();
 
 		// Compute integ_diff_matrix - the second term of eq5.3 with the integral in it.
 		Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic> integ_diff_matrix;
@@ -432,8 +432,9 @@ namespace mFlow {
 			} // End For in j
 		} // End for in i
 
-		auto RHS_vector = Sclavounos1987::rhs_vector_of_circulations();
-		m_solution = (gamma_matrix - integ_diff_matrix).lu().solve(RHS_vector);
+		Eigen::Matrix<std::complex<double>, -1, 1>  RHS_vector =
+ 			Sclavounos1987::rhs_vector_of_circulations();
+		m_solution = (gamma_matrix.cast<std::complex<double>>() - integ_diff_matrix).lu().solve(RHS_vector);
 		return;
 	}
 
