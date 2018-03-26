@@ -7,7 +7,7 @@ add_executable (Compare2Dand3Dunsteady Compare2Dand3Dunsteady/Compare2Dand3Dunst
 target_include_directories (Compare2Dand3Dunsteady PRIVATE "${PROJECT_SOURCE_DIR}/pFlows/include/pFlows") 
 target_link_libraries (Compare2Dand3Dunsteady pFlows)
 # BOOST
-find_package(Boost 1.60 REQUIRED)
+find_package(Boost 1.50 REQUIRED)
 # target_link_libraries(Compare2Dand3Dunsteady Boost)
 # EIGEN
 # find_package(Eigen3 REQUIRED)

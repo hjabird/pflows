@@ -7,7 +7,7 @@ add_executable (Sclavounos1987_demo Sclavounos1987/Sclavounos1987.cpp)
 target_include_directories (Sclavounos1987_demo PRIVATE "${PROJECT_SOURCE_DIR}/pFlows/include/pFlows") 
 target_link_libraries (Sclavounos1987_demo pFlows)
 # BOOST
-find_package(Boost 1.60 REQUIRED)
+find_package(Boost 1.50 REQUIRED)
 # target_link_libraries(Sclavounos1987_demo Boost)
 # EIGEN
 # find_package(Eigen3 REQUIRED)

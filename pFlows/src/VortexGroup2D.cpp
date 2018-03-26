@@ -1,4 +1,4 @@
-#include "..\include\pFlows\VortexGroup2D.h"
+#include "VortexGroup2D.h"
 /*////////////////////////////////////////////////////////////////////////////
 VortexGroup2D.cpp
 

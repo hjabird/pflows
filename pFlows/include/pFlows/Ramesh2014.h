@@ -27,7 +27,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <tuple>
 #include <vector>
 
-#include <HBTK\CartesianVector.h>
+#include <HBTK/CartesianVector.h>
 
 #include "VortexGroup2D.h"
 
