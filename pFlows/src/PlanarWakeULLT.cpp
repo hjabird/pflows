@@ -79,7 +79,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	// Wing geometry:
 	for (int i = 0; i < (int)y_positions.size(); i++) {
 		wake.vertex(0, i, 
-			HBTK::CartesianPoint2D({ wing_projection.trailing_edge_X(y_positions[i]), y_positions[i] })
+			HBTK::CartesianPoint2D({ 0.0, y_positions[i] })
 		);
 	}
 	// Wake geometry:
