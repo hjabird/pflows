@@ -209,14 +209,14 @@ double mFlow::PlanarVortexRingLattice::filament_downwash(
 	const HBTK::CartesianPoint2D & measurement_point)
 {
 	HBTK::CartesianVector2D r1, r2;
-	r1 = filament.start() - measurement_point;
-	r2 = filament.end() - measurement_point;
+	r1 = measurement_point - filament.start();
+	r2 = measurement_point - filament.end() ;
 	HBTK::CartesianVector2D r0 = r1 - r2;
 
 	double term_1, term_2, term_21, term_22;
 	term_1 = strength / (4 * HBTK::Constants::pi() * (r1.x() * r2.y() - r1.y() * r2.x()));
 	term_21 = r1.dot(r0) / r1.magnitude();
-	term_22 = r2.dot(r0) / r1.magnitude();
+	term_22 = r2.dot(r0) / r2.magnitude();
 	term_2 = term_21 - term_22;
 	return term_1 * term_2;
 }

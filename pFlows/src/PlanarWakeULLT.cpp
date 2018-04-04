@@ -1,7 +1,11 @@
 #include "PlanarWakeULLT.h"
 
 
+#include <HBTK/CartesianFiniteLine.h>
+#include <HBTK/CartesianPoint.h>
+#include <HBTK/CartesianVector.h>
 #include <HBTK/Checks.h>
+#include <HBTK/Constants.h>
 #include <HBTK/CubicSpline1D.h>
 #include <HBTK/StructuredBlockIndexerND.h>
 
@@ -76,20 +80,30 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	y_positions.emplace_back(segments.back().end().y());
 	std::vector<double> inner_solution_y_positions;
 	for (auto & plane : inner_solution_planes) inner_solution_y_positions.push_back(plane.origin().y());
-	// Wing geometry:
+	// Wing geometry (well, the lifting line's geometry):
 	for (int i = 0; i < (int)y_positions.size(); i++) {
 		wake.vertex(0, i, 
 			HBTK::CartesianPoint2D({ 0.0, y_positions[i] })
 		);
 	}
-	// Wake geometry:
+	// And the vorticity of the wing
+	for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
+		wake.ring_strength(0, iy, inner_solutions[iy].bound_vorticity());
+	}
+
+	std::vector<double> wake_vorticity_acc(inner_solution_y_positions.size());
+	for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
+		wake_vorticity_acc[iy] = inner_solutions[iy].bound_vorticity();
+	}
+	// Wake geometry and vorticity:
 	int num_wake_points = num_vortex_particles_per_inner_solution();
 	std::vector<double> vortex_x_positions(inner_solution_y_positions.size());
 	for (int ix = num_wake_points - 1; ix >= 0 ; ix--) {
 		for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
 			vortex_x_positions[iy] = inner_solutions[iy].m_vortex_particles[ix].position.x();
 		}
-		// We use cubic spline interpolation. Edges might be dodgy...
+		// We use cubic spline interpolation. Edges might be dodgy - perhaps constrain
+		// to convected position (Nope: otherwise vortex filament is unlikely to pass through vortex...)
 		HBTK::CubicSpline1D line_spline(
 			inner_solution_y_positions,
 			vortex_x_positions);
@@ -97,17 +111,14 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 			wake.vertex(num_wake_points - ix, iy,
 				HBTK::CartesianPoint2D({ line_spline(y_positions[iy]), y_positions[iy] }));
 		}
-	}
-	// Wake vorticity
-	for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
-		wake.ring_strength(0, iy, inner_solutions[iy].bound_vorticity());
-	}
-	for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
-		double vorticity_acc = inner_solutions[iy].bound_vorticity();
-		for (int ix = num_wake_points - 1; ix > 0 ; ix--) {
-			// First shed vortex is correct due to Kelvin condition (corresponds to ix=0)
-			vorticity_acc += inner_solutions[iy].m_vortex_particles[ix].vorticity;
-			wake.ring_strength(num_wake_points - ix, iy, vorticity_acc);
+		if (ix > 0) {	// Fewer ring strengh values to set than vertices.
+			for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
+				// And use the spine's curvature to correct for the vorticity of the vortex ring.
+				double angle = atan(line_spline.derivative(segments[iy].midpoint().y()));
+				wake_vorticity_acc[iy] += inner_solutions[iy].m_vortex_particles[ix].vorticity
+					/ cos(angle);
+				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
+			}
 		}
 	}
 	return wake;
@@ -132,10 +143,20 @@ void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice 
 				0, wake_depth, 0, wake_width);
 			if (!quasi_steady) {
 				downwash += wake.patch_y_filament_downwash_inclusive(in_plane_coordinates[i],
-					1, wake_depth, 0, i);
-				downwash += wake.patch_y_filament_downwash_inclusive(in_plane_coordinates[i],
-					1, wake_depth, i + 1, wake_width);
+					1, wake_depth, 0, wake_width);
+				// Now remove the W_wi as if were of infinite span.
+				for (int j = 0; j < (int)inner_solutions[i].m_vortex_particles.size(); j++) {
+					auto & particle = inner_solutions[i].m_vortex_particles[j];
+					downwash += particle.vorticity / (2 * HBTK::Constants::pi() * (particle.position.x()));
+				}
 			}
+		}
+		if (!HBTK::check_finite(downwash)) {
+			throw std::domain_error(
+				"mFlow::PlanarWakeULLT::set_inner_solution_downwash: "
+				"Computed non-finite downwash. "
+				__FILE__ " : " + std::to_string(__LINE__)
+			);
 		}
 		inner_solutions[i].free_stream_velocity.y() = downwash;
 	}

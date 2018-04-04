@@ -49,8 +49,23 @@ namespace mFlow {
 		// Remove a vortex by index
 		void erase(int index);
 
+
+
 	private:
 		std::vector<Vortex2D> m_vortices;	// 
 		int m_last_added_vortex;		// = -1 for invalid.
 	};
+
+	// Remove vortices with corresponding indexes from multiple groups
+	// if the criterion is considered in AND fashion.
+	void remove_vortices_by_group(std::vector<VortexGroup2D*> groups,
+		const std::vector<std::vector<int>> & indexes_to_remove_by_group);
+
+	// Remove vortices with corresponding indexes from group
+	void remove_vortices_by_group(VortexGroup2D & grp,
+		const std::vector<int> & to_remove);
+
+	// Get the indices of vortices outside some critical distance.
+	std::vector<int> vorticies_by_critical_distance(VortexGroup2D & group, 
+		HBTK::CartesianPoint2D reference_point, double critical_distance);
 }

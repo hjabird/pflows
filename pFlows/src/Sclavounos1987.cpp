@@ -64,12 +64,12 @@ namespace mFlow {
 		analysis.wing = wing;
 		analysis.U = 1.0;
 		analysis.omega = frequency;
-		analysis.number_of_terms = 8;
+		analysis.number_of_terms = 16;
 
 		analysis.j = 3;
 		analysis.compute_solution();
-		heave_cl = analysis.compute_lift_coeff_j3(heave_added_mass_a33) * 
-			(heave_amplitude  
+		heave_cl = analysis.compute_lift_coeff_j3(heave_added_mass_a33);
+		heave_cl *= (heave_amplitude  
 				+ pitch_offset * pitch_amplitude * exp(HBTK::Constants::i() * phase_offset))
 			* (analysis.omega / analysis.U);
 
@@ -437,7 +437,6 @@ namespace mFlow {
 		m_solution = (gamma_matrix.cast<std::complex<double>>() - integ_diff_matrix).lu().solve(RHS_vector);
 		return;
 	}
-
 
 	std::complex<double> Sclavounos1987::solution_vorticity(double y)
 	{

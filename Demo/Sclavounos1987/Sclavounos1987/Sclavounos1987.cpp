@@ -94,7 +94,7 @@ void run_rectangular_experiment() {
 	std::cout << "Using U = " << analysis.U << ".\n\n";
 
 	const int number_of_points = 150;
-	const double max_fq_term = 8;
+	const double max_fq_term = 16;
 	std::vector<double> cl_abs, phase_res, fq_term, cl_imag, cl_real;
 	cl_abs.resize(number_of_points);
 	fq_term.resize(number_of_points);
@@ -119,6 +119,7 @@ void run_rectangular_experiment() {
 
 	HBTK::GnuPlot fig7, fig8;
 	fig7.title("Figure 7: Modulus of the heave lift-coeffient for rectangular wing of AR = 4");
+	fig7.autoscale_on();
 	fig7.xlabel("wd/U");
 	fig7.ylabel("abs(C_L)");
 	fig7.yrange(0, 8);
@@ -130,12 +131,12 @@ void run_rectangular_experiment() {
 	fig7.replot();
 
 	fig8.title("Figure 8: Phase of heave lift coefficeint for rectangular wing of AR = 4");
+	fig8.autoscale_on();
 	fig8.xlabel("wd/U");
 	fig8.ylabel("ph(C_L)");
 	fig8.yrange(-270, 0);
 	fig8.plot(fq_term, phase_res, "k-");
 
-	system("pause");
 	return;
 }
 
@@ -243,6 +244,7 @@ void run_rectangluar_pitch_experiment() {
 
 	HBTK::GnuPlot fig_cl, fig_phase;
 	fig_cl.title("Modulus of the pitch lift-coeffient for rectangular wing of AR = 4");
+	fig_cl.autoscale_on();
 	fig_cl.xlabel("wd/U");
 	fig_cl.ylabel("abs(C_L)");
 	fig_cl.yrange(0, 8);
@@ -254,12 +256,12 @@ void run_rectangluar_pitch_experiment() {
 	fig_cl.replot();
 
 	fig_phase.title("Phase of pitch lift coefficeint for rectangular wing of AR = 4");
+	fig_phase.autoscale_on();
 	fig_phase.xlabel("wd/U");
 	fig_phase.ylabel("ph(C_L)");
 	fig_phase.yrange(-270, 0);
 	fig_phase.plot(fq_term, phase_res, "k-");
 
-	system("pause");
 	return;
 }
 
@@ -313,9 +315,9 @@ void run_circulatory_lift_distribution_demo_elliptic() {
 	fig_lift.plot(y_pos, cl_HFC);
 	fig_lift.plot(y_pos, cl_HFS);
 	fig_lift.legend({ "SRF=1, CRF=1/8", "SRF=1, CRF=1", "SRF=10, CRF=1/8" });
+	fig_lift.autoscale_on();
 	fig_lift.replot();
 
-	system("pause");
 	return;
 }
 
@@ -370,9 +372,132 @@ void run_circulatory_lift_distribution_demo_rectangular() {
 	fig_lift.plot(y_pos, cl_HFC);
 	fig_lift.plot(y_pos, cl_HFS);
 	fig_lift.legend({ "SRF=1, CRF=1/8", "SRF=1, CRF=1", "SRF=10, CRF=1/8" });
+	fig_lift.autoscale_on();
 	fig_lift.replot();
 
 	system("pause");
+	return;
+}
+
+void run_aspect_ratio_demo_rectangular() {
+	mFlow::Sclavounos1987 analysis_ar_inf;
+	mFlow::WingGenerators::rectangular(analysis_ar_inf.wing, 1000, 1000);
+	analysis_ar_inf.U = 1;
+	analysis_ar_inf.omega = 2;
+	analysis_ar_inf.j = 3;
+	analysis_ar_inf.number_of_terms = 16;
+
+	const int number_of_points = 100;
+	std::vector<double> y_pos, ar_inf, ar_4, ar_2, ar_1;
+	y_pos = HBTK::linspace(-0.499, 0.499, number_of_points);
+	ar_inf.resize(number_of_points);
+	ar_4.resize(number_of_points);
+	ar_2.resize(number_of_points);
+	ar_1.resize(number_of_points);
+
+	auto get_Cl2D = [](double y, mFlow::Sclavounos1987 analysis) {
+		std::complex<double> t1 = HBTK::Constants::pi() * (1. - analysis.F(y));
+		double semichord = analysis.wing.semichord(y);
+		std::complex<double> C = mFlow::Common::theodorsen_function(semichord * analysis.omega / analysis.U);
+		// return -4.0 * t1 * C * semichord / analysis.wing.area();
+		return t1;
+	};
+
+	auto analysis_ar_4 = analysis_ar_inf;
+	mFlow::WingGenerators::rectangular(analysis_ar_4.wing, 4, 4);
+	auto analysis_ar_2 = analysis_ar_inf;
+	mFlow::WingGenerators::rectangular(analysis_ar_2.wing, 2, 2);
+	auto analysis_ar_1 = analysis_ar_inf;
+	mFlow::WingGenerators::rectangular(analysis_ar_1.wing, 1, 1);
+
+	analysis_ar_inf.compute_solution();
+	analysis_ar_4.compute_solution();
+	analysis_ar_2.compute_solution();
+	analysis_ar_1.compute_solution();
+
+	for (int i = 0; i < number_of_points; i++) {
+		double y = y_pos[i];
+		ar_inf[i] = abs(get_Cl2D(y * 1000, analysis_ar_inf));
+		ar_4[i] = abs(get_Cl2D(y * 4, analysis_ar_4));
+		ar_2[i] = abs(get_Cl2D(y * 2, analysis_ar_2));
+		ar_1[i] = abs(get_Cl2D(y * 1, analysis_ar_1));
+	}
+
+	HBTK::GnuPlot fig_lift;
+	fig_lift.hold_on();
+	fig_lift.replot_off();
+	fig_lift.title("Lift distribution over span for different AR rectangular wings");
+	fig_lift.xlabel("Span position");
+	fig_lift.ylabel("Normalised Lift per unit span");
+	fig_lift.plot(y_pos, ar_inf);
+	fig_lift.plot(y_pos, ar_4);
+	fig_lift.plot(y_pos, ar_2);
+	fig_lift.plot(y_pos, ar_1);
+	fig_lift.legend({ "AR_{inf}", "AR_4", "AR_2", "AR_1" });
+	fig_lift.autoscale_on();
+	fig_lift.replot();
+
+	return;
+}
+
+void run_aspect_ratio_demo_elliptic() {
+	mFlow::Sclavounos1987 analysis_ar_inf;
+	mFlow::WingGenerators::elliptic(analysis_ar_inf.wing, 1000, 1000);
+	analysis_ar_inf.U = 1;
+	analysis_ar_inf.omega = 2;
+	analysis_ar_inf.j = 3;
+	analysis_ar_inf.number_of_terms = 16;
+
+	const int number_of_points = 100;
+	std::vector<double> y_pos, ar_inf, ar_4, ar_2, ar_1;
+	y_pos = HBTK::linspace(-0.499, 0.499, number_of_points);
+	ar_inf.resize(number_of_points);
+	ar_4.resize(number_of_points);
+	ar_2.resize(number_of_points);
+	ar_1.resize(number_of_points);
+
+	auto get_Cl2D = [](double y, mFlow::Sclavounos1987 analysis) {
+		std::complex<double> t1 = HBTK::Constants::pi() * (1. - analysis.F(y));
+		double semichord = analysis.wing.semichord(y);
+		std::complex<double> C = mFlow::Common::theodorsen_function(semichord * analysis.omega / analysis.U);
+		// return -4.0 * t1 * C * semichord / analysis.wing.area();
+		return t1;
+	};
+
+	auto analysis_ar_4 = analysis_ar_inf;
+	mFlow::WingGenerators::elliptic(analysis_ar_4.wing, 4, 4);
+	auto analysis_ar_2 = analysis_ar_inf;
+	mFlow::WingGenerators::elliptic(analysis_ar_2.wing, 2, 2);
+	auto analysis_ar_1 = analysis_ar_inf;
+	mFlow::WingGenerators::elliptic(analysis_ar_1.wing, 1, 1);
+
+	analysis_ar_inf.compute_solution();
+	analysis_ar_4.compute_solution();
+	analysis_ar_2.compute_solution();
+	analysis_ar_1.compute_solution();
+
+	for (int i = 0; i < number_of_points; i++) {
+		double y = y_pos[i];
+		ar_inf[i] = abs(get_Cl2D(y * 1000, analysis_ar_inf));
+		ar_4[i] = abs(get_Cl2D(y * 4, analysis_ar_4));
+		ar_2[i] = abs(get_Cl2D(y * 2, analysis_ar_2));
+		ar_1[i] = abs(get_Cl2D(y * 1, analysis_ar_1));
+	}
+
+	HBTK::GnuPlot fig_lift;
+	fig_lift.hold_on();
+	fig_lift.replot_off();
+	fig_lift.title("Lift distribution over span for different AR elliptic wings");
+	fig_lift.xlabel("Span position");
+	fig_lift.ylabel("Normalised Lift per unit span");
+	fig_lift.plot(y_pos, ar_inf);
+	fig_lift.plot(y_pos, ar_4);
+	fig_lift.plot(y_pos, ar_2);
+	fig_lift.plot(y_pos, ar_1);
+	fig_lift.legend({ "AR_{inf}", "AR_4", "AR_2", "AR_1" });
+	fig_lift.autoscale_on();
+	fig_lift.replot();
+
 	return;
 }
 
@@ -386,11 +511,12 @@ int main()
 	std::cout << "GnuPlot is available and added to path.\n\n";
 
 	//run_elliptic_experiment();
-	//run_rectangular_experiment();
+	run_rectangular_experiment();
 	//run_elliptic_pitch_experiment();
 	//run_rectangluar_pitch_experiment();
-	run_circulatory_lift_distribution_demo_elliptic();
-	run_circulatory_lift_distribution_demo_rectangular();
+	//run_circulatory_lift_distribution_demo_elliptic();
+	//run_circulatory_lift_distribution_demo_rectangular();
+	//run_aspect_ratio_demo_elliptic();
 
 	return 0;
 }

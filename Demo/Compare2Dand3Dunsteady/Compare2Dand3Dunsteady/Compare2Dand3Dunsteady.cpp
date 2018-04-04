@@ -3,8 +3,13 @@
 
 
 #include <iostream>
+#include <string>
 
 #include <HBTK/Constants.h>
+#include <HBTK/CsvWriter.h>
+#include <HBTK/DoubleTable.h>
+#include <HBTK/Generators.h>
+#include <HBTK/Paths.h>
 
 #include "WingProjectionGeometry.h"
 #include "WingGenerators.h"
@@ -15,16 +20,21 @@
 int main()
 {	
 	std::cout << "Compare 2D / 3D unsteady sinusiodal. \n(c) HJA Bird 2018\n\n";
+	std::cout << "Working dir: " << HBTK::Paths::current_working_directory() << "\n";
+	std::cout << "Exe dir: " << HBTK::Paths::executable_path() << "\n";
 
-	double span = 1;
-	double aspect_ratio = 4;
-	double heave_amplitude = 0.174;
-	double pitch_amplitude = 0.0;		// radians
-	double phase_offset = 0.32097;		// radians
-	double frequency = 103.3;		// Angular frequency (radians / s)
+	double span =  0.25 * 0.3048;
+	double aspect_ratio = 1;
+	double heave_amplitude = 0.0;// 0.05 * 0.3048 / 4;
+	double pitch_amplitude = -0.042586;		// radians
+	double phase_offset = 1.21096;		// radians
+	double frequency = 10.3;		// Angular frequency (radians / s)
 	double period = 2 * HBTK::Constants::pi() / frequency;
 	double pitch_location = -1.0;	// LE->-1, TE->1
 
+	std::vector<double> fq_range = HBTK::linspace(1, 20, 19);
+	std::vector<double> ar_range = HBTK::linspace(1, 10, 1);
+	std::string output_path = "rect_comparison.csv";
 	
 	std::complex<double> sclavounos_cl, qstat_cl, theodorsen_cl;
 
@@ -36,7 +46,7 @@ int main()
 	sclavounos.j = 3;
 	sclavounos.U = 1;
 	sclavounos.omega = frequency;
-	sclavounos.number_of_terms = 8;
+	sclavounos.number_of_terms = 16;
 	sclavounos.compute_solution();
 	auto pitch_complex = heave_amplitude * sclavounos.compute_equivalent_pitch_rectangular_wing(wing.semichord(0)*pitch_location);
 	pitch_amplitude = - abs(pitch_complex);
@@ -89,6 +99,52 @@ int main()
 	mFlow::Plotting::plot_complex_over_period(sclavounos_cl, period, plot, "k-");
 	plot.axis_equal_off();
 	plot.replot();
+
+	if ((int)fq_range.size() > 0 && (int)ar_range.size() > 0) {
+		std::cout << "Working on " << output_path << "...\n";
+		std::cout << "\t" << (int)fq_range.size() << " Fq values\n";
+		std::cout << "\t" << (int)ar_range.size() << " AR values\n";
+		HBTK::DoubleTable table;
+		table.add_column("Frequency (rad)");
+		table.add_column("Aspect ratio");
+		table.add_column("Chord reduced freq");
+		table.add_column("Span reduced freq");
+		table.add_column("Heave amp / c");
+		table.add_column("Pitch amp (rad)");
+		table.add_column("Phase off (rad)");
+		table.add_column("Pitch loc");
+		table.add_column("Theo Abs(Cl)");
+		table.add_column("Theo Ph(Cl)");
+		table.add_column("Scl Abs(Cl)");
+		table.add_column("Scl Ph(Cl)");
+
+		for (double fq : fq_range) {
+			for (double ar : ar_range) {
+				table.column(0).push_back(fq);
+				mFlow::WingProjectionGeometry wing;
+				mFlow::WingGenerators::rectangular(wing, span, ar);
+				table.column(1).push_back(ar);
+				table.column(2).push_back(fq * wing.semichord(0));
+				table.column(3).push_back(fq * span / 2);
+				table.column(4).push_back(heave_amplitude / wing.chord(0));
+				table.column(5).push_back(pitch_amplitude);
+				table.column(6).push_back(phase_offset);
+				table.column(7).push_back(pitch_location);
+				sclavounos_cl = mFlow::Sclavounos1987::conventional_lift_coefficient(heave_amplitude, pitch_amplitude, phase_offset,
+					fq, wing, mFlow::rectangular_added_mass_coefficient(span, wing.chord(0)), wing.semichord(0)*pitch_location);
+				mcgowan.frequency = fq;
+				theodorsen_cl = mcgowan.theodorsen_unsteady();
+				table.column(8).push_back(abs(theodorsen_cl));
+				table.column(9).push_back(std::arg(theodorsen_cl));
+				table.column(10).push_back(abs(sclavounos_cl));
+				table.column(11).push_back(std::arg(sclavounos_cl));
+			}
+		}
+
+		HBTK::CsvWriter writer;
+		writer.write(std::ofstream(output_path), table);
+	}
+	
 
     return 0;
 }

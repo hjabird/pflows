@@ -395,13 +395,6 @@ std::pair<double, double> mFlow::Ramesh2014::foil_coordinate(double eta)
 
 std::pair<double, double> mFlow::Ramesh2014::foil_velocity(double eta)
 {
-	/*
-	double vx, vy;
-	vy = foil_dZdt(time);
-	double radial_vel = semichord * (pitch_location + eta) * foil_dAoAdt(time);
-	vy += radial_vel * sin(foil_AoA(time));
-	vx = radial_vel * cos(foil_AoA(time));
-	*/
 	double angular_vel = foil_dAoAdt(time);
 	double AoA = foil_AoA(time);
 	double x, y, xp, yp;
@@ -509,11 +502,11 @@ double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
 
 std::pair<double, double> mFlow::Ramesh2014::aerofoil_lift_and_drag_coefficients()
 {
-	double stream_vel_mag_2 = pow(free_stream_velocity.magnitude(), 2);
+	double stream_vel_norm = pow(free_stream_velocity.x(), 2);
 	double normal_force_coeff = aerofoil_normal_force(1.) / 
-		(stream_vel_mag_2 * semichord);
+		(stream_vel_norm * semichord);
 	double suction_force_coeff = aerofoil_leading_edge_suction_force(1.) /
-		(stream_vel_mag_2 * semichord);
+		(stream_vel_norm * semichord);
 	double cl, cd;
 	double alpha = foil_AoA(time);
 	cl = normal_force_coeff * cos(alpha) + suction_force_coeff * sin(alpha);

@@ -25,25 +25,25 @@ int main(int argc, char* argv[]) {
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
 	double aspect_ratio = 4;
-	mFlow::WingGenerators::rectangular(wing, 1, aspect_ratio);
+	mFlow::WingGenerators::rectangular(wing, 0.3048, aspect_ratio);
 
 	mFlow::PlanarWakeULLT sim;
 	sim.wing_projection = wing;
 	sim.quasi_steady = false;
-	int write_vtk_every = 25;
+	int write_vtk_every = 10;
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.pitch_location = 0.0;
-	inner_sol.delta_t = 0.25;
-	inner_sol.free_stream_velocity.x() = 1. / aspect_ratio;
-	inner_sol.foil_AoA = [](double t)->double { return 0.0;  };
-	inner_sol.foil_dAoAdt = [](double t)->double {return 0.0; };
-	inner_sol.foil_Z = [](double t)->double {return 0.174 * sin(t * 0.1 * HBTK::Constants::pi()); };
-	inner_sol.foil_dZdt = [](double t)->double {return  0.174 * 0.1 * HBTK::Constants::pi() * cos(t * 0.1 * HBTK::Constants::pi()); };
+	inner_sol.delta_t = 0.001;
+	inner_sol.free_stream_velocity.x() = 1.;
+	inner_sol.foil_AoA = [](double t)->double { return 0.05;  };
+	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
+	inner_sol.foil_Z = [](double t)->double { return 0.0; };// 0.00381 * cos(t * 10.3); };
+	inner_sol.foil_dZdt = [](double t)->double { return 0.0; };// -0.00381 * 10.3 * sin(t * 10.3); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
 
-	int num_inner = 20;
+	int num_inner = 12;
 	for (int i = 0; i < num_inner; i++) {
 		double y_pos = -wing.semispan() + wing.span * (i + 0.5) / num_inner;
 		sim.inner_solution_planes.push_back(HBTK::CartesianPlane(
@@ -67,22 +67,30 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 500;
-	for (int i = 0; i < n_steps; i++) {
-		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
-		sim.advance_one_step();
-		table_bv[0].push_back(i * sim.inner_solutions[0].delta_t);
-		table_bv[1].push_back(i);
-		table_bv[2].push_back(sim.compute_lift_coefficient());
-		table_dw[0].push_back(i * sim.inner_solutions[0].delta_t);
-		table_dw[1].push_back(i);
-		for (int ic = 0; ic < (int)sim.inner_solutions.size(); ic++) {
-			table_bv[ic + 3].push_back(sim.inner_solutions[ic].bound_vorticity());
-			table_dw[ic + 2].push_back(sim.inner_solutions[ic].free_stream_velocity.y());
+	int n_steps = 800;
+	try {
+		for (int i = 0; i < n_steps; i++) {
+			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
+			sim.advance_one_step();
+			table_bv[0].push_back(i * sim.inner_solutions[0].delta_t);
+			table_bv[1].push_back(i);
+			table_bv[2].push_back(sim.compute_lift_coefficient());
+			table_dw[0].push_back(i * sim.inner_solutions[0].delta_t);
+			table_dw[1].push_back(i);
+			for (int ic = 0; ic < (int)sim.inner_solutions.size(); ic++) {
+				table_bv[ic + 3].push_back(sim.inner_solutions[ic].bound_vorticity());
+				table_dw[ic + 2].push_back(sim.inner_solutions[ic].free_stream_velocity.y());
+			}
+			if (i%write_vtk_every == 0) {
+				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
+			}
 		}
-		if (i%write_vtk_every == 0) {
-			sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
-		}
+	}
+	catch (std::domain_error & e) {
+		std::cout << "\n";
+		std::cout << "Encountered error: \n";
+		std::cout << e.what() << "\n";
+		std::cout << "Will print any unrecorded results to file and stop.\n";
 	}
 	std::cout << "\n";
 	HBTK::CsvWriter csv_writer;
