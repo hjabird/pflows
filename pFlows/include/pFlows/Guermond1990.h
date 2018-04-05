@@ -12,6 +12,7 @@ namespace mFlow {
 		~Guermond1990();
 
 		WingProjectionGeometry wing;
+
 		// Incidence with respect to Y_Global
 		std::function<double(double)> incidence;
 		std::function<double(double)> zero_lift_incidence;
