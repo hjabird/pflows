@@ -100,7 +100,8 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	std::vector<double> vortex_x_positions(inner_solution_y_positions.size());
 	for (int ix = num_wake_points - 1; ix >= 0 ; ix--) {
 		for (int iy = 0; iy < (int)inner_solutions.size(); iy++) {
-			vortex_x_positions[iy] = inner_solutions[iy].m_vortex_particles[ix].position.x();
+			vortex_x_positions[iy] = inner_solutions[iy].m_vortex_particles[ix].position.x()
+				- wing_projection.trailing_edge_X(inner_solution_planes[iy].origin().y());
 		}
 		// We use cubic spline interpolation. Edges might be dodgy - perhaps constrain
 		// to convected position (Nope: otherwise vortex filament is unlikely to pass through vortex...)
@@ -137,6 +138,7 @@ void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice 
 	int wake_depth = wake.extent()[0];
 	int wake_width = wake.extent()[1];
 	for (int i = 0; i < (int)inner_solutions.size(); i++) {
+		double trailing_edge_x = wing_projection.trailing_edge_X(inner_solution_planes[i].origin().y());
 		double downwash = 0;
 		if (wake.size() > 0) {
 			downwash += wake.patch_x_filament_downwash_inclusive(in_plane_coordinates[i],
@@ -144,10 +146,10 @@ void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice 
 			if (!quasi_steady) {
 				downwash += wake.patch_y_filament_downwash_inclusive(in_plane_coordinates[i],
 					1, wake_depth, 0, wake_width);
-				// Now remove the W_wi as if were of infinite span.
+				// Now remove the W_wi as if were of infinite span (avoid W_wi in inner AND outer solution)
 				for (int j = 0; j < (int)inner_solutions[i].m_vortex_particles.size(); j++) {
 					auto & particle = inner_solutions[i].m_vortex_particles[j];
-					downwash += particle.vorticity / (2 * HBTK::Constants::pi() * (particle.position.x()));
+					downwash += particle.vorticity / (2 * HBTK::Constants::pi() * (particle.position.x() - trailing_edge_x));
 				}
 			}
 		}

@@ -34,16 +34,16 @@ int main(int argc, char* argv[]) {
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.pitch_location = 0.0;
-	inner_sol.delta_t = 0.001;
+	inner_sol.delta_t = 0.005;
 	inner_sol.free_stream_velocity.x() = 1.;
-	inner_sol.foil_AoA = [](double t)->double { return 0.05;  };
+	inner_sol.foil_AoA = [](double t)->double { return 0.0;  };
 	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
-	inner_sol.foil_Z = [](double t)->double { return 0.0; };// 0.00381 * cos(t * 10.3); };
-	inner_sol.foil_dZdt = [](double t)->double { return 0.0; };// -0.00381 * 10.3 * sin(t * 10.3); };
+	inner_sol.foil_Z = [](double t)->double { return 0.00381 * cos(t * 10.3); };
+	inner_sol.foil_dZdt = [](double t)->double { return -0.00381 * 10.3 * sin(t * 10.3); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
 
-	int num_inner = 12;
+	int num_inner = 20;
 	for (int i = 0; i < num_inner; i++) {
 		double y_pos = -wing.semispan() + wing.span * (i + 0.5) / num_inner;
 		sim.inner_solution_planes.push_back(HBTK::CartesianPlane(
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 800;
+	int n_steps = 100;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
