@@ -94,7 +94,7 @@ void mFlow::remove_vortices_by_group(std::vector<VortexGroup2D*> groups, const s
 	int smallest_grp;
 	std::vector<int> to_remove;
 	{
-		int smallest_grp, smallest_group_size;
+		int smallest_group_size;
 		smallest_grp = 0;
 		smallest_group_size = (int)indexes_to_remove_by_group[0].size();
 		for (int i = 1; i < (int)indexes_to_remove_by_group.size(); i++) {

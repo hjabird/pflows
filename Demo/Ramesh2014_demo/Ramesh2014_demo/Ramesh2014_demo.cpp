@@ -29,12 +29,12 @@ int main()
 	sim.pitch_location = 0;
 	sim.delta_t = 0.1;
 	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 0 });
-	sim.foil_AoA = [](double t) { return 0.05; };
-	sim.foil_dAoAdt = [](double t) { return 0.0; };
-	sim.foil_Z = [](double t) { return 0; };
-	sim.foil_dZdt = [](double t) { return 0; };
-	sim.camber_line = [&](double x) { return 0.0; }; // camber((x + 1) / 2); };
-	sim.camber_slope = [&](double x) { return 0.0; }; //camber.derivative((x + 1) / 2);  };
+	sim.foil_AoA = [](double t) { return 0.5 * sin(0.1 * 2 * 3.141 * t); };
+	sim.foil_dAoAdt = [](double t) { return 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
+	sim.foil_Z = [](double t) { return 0.05 * sin(0.1*2 * 3.141 * t); };
+	sim.foil_dZdt = [](double t) { return 0.05 * 0.1*2*3.141*cos(0.1*2*3.141*t); };
+	//sim.camber_line = [&](double x) { return camber((x + 1) / 2); };
+	//sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 
 	sim.number_of_fourier_terms = 8;
 	sim.initialise();
@@ -103,11 +103,10 @@ int main()
 		foil_file << "# vtk DataFile Version 2.0\nFile\nASCII\n";
 		foil_file << "DATASET UNSTRUCTURED_GRID\n";
 		foil_file << "POINTS 30 float\n";
-		double xtmp, ztmp;
 		auto positions = HBTK::linspace(-1, 1, 30);
 		for (int i = 0; i < 30; i++) {
-			std::tie(xtmp, ztmp) = sim.foil_coordinate(positions[i]);
-			foil_file << xtmp << " 0.0 " << ztmp << "\n";
+			HBTK::CartesianPoint2D pnt = sim.foil_coordinate(positions[i]);
+			foil_file << pnt.x() << " 0.0 " << pnt.y() << "\n";
 		}
 		foil_file << "\nCELLS 29 87\n";
 		for (int i = 0; i < 29; i++) { foil_file << "2 " << i << " " << i + 1 << "\n"; }

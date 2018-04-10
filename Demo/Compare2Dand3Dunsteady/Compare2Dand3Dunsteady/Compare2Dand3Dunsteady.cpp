@@ -23,12 +23,12 @@ int main()
 	std::cout << "Working dir: " << HBTK::Paths::current_working_directory() << "\n";
 	std::cout << "Exe dir: " << HBTK::Paths::executable_path() << "\n";
 
-	double span =  0.25 * 0.3048;
+	double span =  1;
 	double aspect_ratio = 1;
-	double heave_amplitude = 0.0;// 0.05 * 0.3048 / 4;
-	double pitch_amplitude = -0.042586;		// radians
+	double heave_amplitude = 0.01;// 0.05 * 0.3048 / 4;
+	double pitch_amplitude = -0.00;		// radians
 	double phase_offset = 1.21096;		// radians
-	double frequency = 10.3;		// Angular frequency (radians / s)
+	double frequency = 2*3.141*0.1;		// Angular frequency (radians / s)
 	double period = 2 * HBTK::Constants::pi() / frequency;
 	double pitch_location = -1.0;	// LE->-1, TE->1
 

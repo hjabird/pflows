@@ -27,6 +27,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <tuple>
 #include <vector>
 
+#include <HBTK/CartesianPoint.h>
 #include <HBTK/CartesianVector.h>
 
 #include "VortexGroup2D.h"
@@ -75,11 +76,11 @@ namespace mFlow {
 		int number_of_fourier_terms;
 		
 		// For -1 = LE, 1 = TE, get coordinate of point on foil.
-		std::pair<double, double> foil_coordinate(double eta);
+		HBTK::CartesianPoint2D foil_coordinate(double eta);
 
 		// For -1 = LE, 1 = TE, get the velocity of a point on the foil described
 		// by foil_coordinate(eta)
-		std::pair<double, double> foil_velocity(double eta);
+		HBTK::CartesianVector2D foil_velocity(double eta);
 
 		// Force:
 
@@ -119,7 +120,8 @@ namespace mFlow {
 
 		// Get the velocity induced at a point by the all the vortex particles
 		// in the wake. Invalid if location is that of a particle (singular).
-		std::pair<double, double> get_particle_induced_velocity(double x, double y);
+		HBTK::CartesianVector2D get_particle_induced_velocity(
+			HBTK::CartesianPoint2D mesurement_location);
 
 		// Adjust the vorticity of the last shed particle to enforce 
 		// Kelvin's condition Eq2.6
@@ -147,10 +149,15 @@ namespace mFlow {
 		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
 		double vortex_core_size() const;
 
+		// Get the coordinate for the pivot at any point in time.
+		HBTK::CartesianPoint2D pivot_coordinate( void );
+
 		// The velocity induced at point (x_mes, y_mes) by a vortex blob at (x_vor, y_vor)
 		// with unity total vorticity. Eq2.12 and Eq2.13
-		std::pair<double, double> unity_vortex_blob_induced_vel(
-			double x_mes, double y_mes, double x_vor, double y_vor, double vortex_core_size);
+		HBTK::CartesianVector2D unity_vortex_blob_induced_vel(
+			const HBTK::CartesianPoint2D & mes_point, 
+			const HBTK::CartesianPoint2D & vortex_point,
+			double vortex_core_size);
 	};
 } // End namespace mFlow
 
