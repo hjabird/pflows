@@ -123,6 +123,9 @@ namespace mFlow {
 		HBTK::CartesianVector2D get_particle_induced_velocity(
 			HBTK::CartesianPoint2D mesurement_location);
 
+		// Get induced velocity normal to foil surface - Eq.2.5
+		double induced_velocity_normal_to_foil_surface(double local_coordinate);
+
 		// Adjust the vorticity of the last shed particle to enforce 
 		// Kelvin's condition Eq2.6
 		void adjust_last_shed_vortex_particle_for_kelvin_condition();

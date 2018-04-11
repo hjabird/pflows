@@ -14,6 +14,7 @@
 #include <HBTK/Paths.h>
 
 #include "Ramesh2014.h"
+#include "CanonicalFuntions.h"
 
 int main()
 {
@@ -26,18 +27,26 @@ int main()
 	HBTK::CubicSpline1D camber = foil.get_camber_spline();
 
 	sim.semichord = 0.5;
-	sim.pitch_location = 0;
-	sim.delta_t = 0.1;
+	sim.pitch_location = -1;
+	sim.delta_t = 0.01;
 	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 0 });
-	sim.foil_AoA = [](double t) { return 0.5 * sin(0.1 * 2 * 3.141 * t); };
-	sim.foil_dAoAdt = [](double t) { return 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
-	sim.foil_Z = [](double t) { return 0.05 * sin(0.1*2 * 3.141 * t); };
-	sim.foil_dZdt = [](double t) { return 0.05 * 0.1*2*3.141*cos(0.1*2*3.141*t); };
+	mFlow::EldredgeSmoothRamp ramp(1, 3, 4, 6, 11, 0.7854, 1, 1);
+	sim.foil_AoA = [&](double t) { return ramp.f(t); };// 0.5 * sin(0.1 * 2 * 3.141 * t); };
+	sim.foil_dAoAdt = [&](double t) { return ramp.dfdx(t); };// 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
+	sim.foil_Z = [](double t) { return 0.0; };// 0.05 * sin(0.1 * 2 * 3.141 * t); };
+	sim.foil_dZdt = [](double t) { return 0.0; };//0.05 * 0.1*2*3.141*cos(0.1*2*3.141*t); };
 	//sim.camber_line = [&](double x) { return camber((x + 1) / 2); };
 	//sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 
-	sim.number_of_fourier_terms = 8;
-	sim.initialise();
+	sim.number_of_fourier_terms = 4;
+	try {
+		sim.initialise();
+	}
+	catch (std::domain_error & e) {
+		std::cout << "ERROR:\n";
+		std::cout << e.what() << "\n";
+		return 1;
+	}
 
 	HBTK::DoubleTable step_data;
 	step_data.add_column("Time");
@@ -52,7 +61,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 700; i++) {
 		sim.advance_one_step();
 
 		step_data["Step"].emplace_back(i+1);
