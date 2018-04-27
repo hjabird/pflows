@@ -89,7 +89,7 @@ namespace mFlow {
 		// Compute the normal force on the aerofoil. Eq2.30
 		double aerofoil_normal_force(double density);
 		// Compute the moment about the pitch location Eq2.32
-		double aerofoil_moment_about_pitch_location(double density);
+		double aerofoil_moment_about_pitch_location(double density);	// POSSIBLY BAD.
 		// Compute the lift and drag coefficients.
 		// Std::pair<(lift coeff), (drag coeff)> is returned.
 		std::pair<double, double> aerofoil_lift_and_drag_coefficients();
@@ -115,7 +115,7 @@ namespace mFlow {
 		void convect_particles();
 
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
-		void shed_new_particle();
+		void shed_new_particle_with_zero_vorticity();
 
 
 		// Get the velocity induced at a point by the all the vortex particles

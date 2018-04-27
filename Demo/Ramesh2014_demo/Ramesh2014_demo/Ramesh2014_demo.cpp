@@ -39,6 +39,7 @@ int main()
 	//sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 
 	sim.number_of_fourier_terms = 4;
+	sim.wake_self_convection = false;
 	try {
 		sim.initialise();
 	}

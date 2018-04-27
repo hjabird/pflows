@@ -9,6 +9,7 @@
 #include <HBTK/CsvWriter.h>
 #include <HBTK/DoubleTable.h>
 #include <HBTK/Generators.h>
+#include <HBTK/Integrators.h>
 #include <HBTK/Paths.h>
 
 #include "WingProjectionGeometry.h"
@@ -18,24 +19,24 @@
 #include "Plotting.h"
 
 int main()
-{	
+{
 	std::cout << "Compare 2D / 3D unsteady sinusiodal. \n(c) HJA Bird 2018\n\n";
 	std::cout << "Working dir: " << HBTK::Paths::current_working_directory() << "\n";
 	std::cout << "Exe dir: " << HBTK::Paths::executable_path() << "\n";
 
-	double span =  1;
-	double aspect_ratio = 1;
-	double heave_amplitude = 0.01;// 0.05 * 0.3048 / 4;
-	double pitch_amplitude = -0.00;		// radians
-	double phase_offset = 1.21096;		// radians
-	double frequency = 2*3.141*0.1;		// Angular frequency (radians / s)
+	double span = 0.0762 * 12; 
+	double aspect_ratio = 12;
+	double heave_amplitude = 0.05 * 0.0762;// 0.05 * 0.3048 / 4;
+	double pitch_amplitude = 0;		// radians
+	double phase_offset = 1.5708;		// radians
+	double frequency = 103.3;		// Angular frequency (radians / s)
 	double period = 2 * HBTK::Constants::pi() / frequency;
-	double pitch_location = -1.0;	// LE->-1, TE->1
+	double pitch_location = 0.0;	// LE->-1, TE->1 at center span.
 
 	std::vector<double> fq_range = HBTK::linspace(1, 20, 19);
 	std::vector<double> ar_range = HBTK::linspace(1, 10, 1);
 	std::string output_path = "rect_comparison.csv";
-	
+
 	std::complex<double> sclavounos_cl, qstat_cl, theodorsen_cl;
 
 	mFlow::WingProjectionGeometry wing;
@@ -61,17 +62,31 @@ int main()
 	mcgowan.pitch_amplitude = pitch_amplitude;
 	mcgowan.plunge_amplitude = heave_amplitude;
 	mcgowan.frequency = frequency;
-	mcgowan.pitch_location = pitch_location;
-	mcgowan.semichord = wing.semichord(0);
+	auto setup_2D = [&](double y){		
+		double chord = wing.chord(y);
+		double chord0 = wing.chord(0);
+		double pitch_loc = pitch_location * chord0 / chord;
+		mcgowan.pitch_location = pitch_loc;
+		mcgowan.semichord = chord / 2; 
+	};
+	auto theodorsen_integrand = [&](double y)->std::complex<double> {
+		setup_2D(y);
+		return mcgowan.theodorsen_unsteady() * wing.chord(y);
+	};
+	auto qstat_integrand = [&](double y)->std::complex<double> {
+		setup_2D(y);
+		return mcgowan.qstat_unsteady() * wing.chord(y);
+	};
+	qstat_cl = HBTK::adaptive_simpsons_integrate(qstat_integrand, 1e-3, -wing.semispan() + 1e-5, wing.semispan() - 1e-5) / wing.area();
+	theodorsen_cl = HBTK::adaptive_simpsons_integrate(theodorsen_integrand, 1e-3, -wing.semispan() + 1e-5, wing.semispan() - 1e-5) / wing.area();
 
-	qstat_cl = mcgowan.qstat_unsteady();
-	theodorsen_cl = mcgowan.theodorsen_unsteady();
 
 	double span_reduced_frequency = frequency * span / 2;
-	double chord_reduced_frequency = frequency * mcgowan.semichord;
+	double chord_reduced_frequency = frequency * wing.semichord(0);
 
 	std::cout << "\nU = " << mcgowan.free_stream_vel;
-	std::cout << "\nChord(y=0) = " << mcgowan.semichord * 2;
+	std::cout << "\nChord(y=0) = " << wing.chord(0);
+	std::cout << "\nSpan = " << wing.span;
 	std::cout << "\nPlunge amp = " << heave_amplitude;
 	std::cout << "\nPitch amp (RAD) = " << pitch_amplitude;
 	std::cout << "\nPitch amp (DEG) = " << pitch_amplitude * 180 / HBTK::Constants::pi();
@@ -79,9 +94,10 @@ int main()
 	std::cout << "\nPitch phase offset (DEG) = " << phase_offset * 180 / HBTK::Constants::pi();
 	std::cout << "\nPitch location [-1=LE, 1=TE] = " << mcgowan.pitch_location;
 	std::cout << "\nAspect ratio = " << aspect_ratio;
+	std::cout << "\nOmega = " << frequency;
 	std::cout << "\nPeriod = " << period;
-	std::cout << "\nChord reduced freq = " << chord_reduced_frequency;
-	std::cout << "\nspan reduced freq = " << span_reduced_frequency;
+	std::cout << "\nChord reduced freq (y=0) = " << chord_reduced_frequency;
+	std::cout << "\nSpan reduced freq = " << span_reduced_frequency;
 	std::cout << "\n\nSclavounos cl = \t" << sclavounos_cl << " -> \t" << abs(sclavounos_cl) << " at " << std::arg(sclavounos_cl);
 	std::cout << "\nqstat_cl = \t\t" << qstat_cl << " -> \t" << abs(qstat_cl) << " at " << std::arg(qstat_cl);
 	std::cout << "\ntheodorson cl = \t" << theodorsen_cl << " -> \t" << abs(theodorsen_cl) << " at " << std::arg(theodorsen_cl);
