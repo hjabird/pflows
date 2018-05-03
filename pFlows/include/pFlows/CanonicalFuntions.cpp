@@ -92,7 +92,7 @@ inline double mFlow::EldredgeSmoothRamp::eld_cosh(double t, double t_ref)
 
 inline double mFlow::EldredgeSmoothRamp::eld_sinh(double t, double t_ref)
 {
-	return sinh((U * c *(t - t_ref)) /  c);
+	return sinh((U * a * (t - t_ref)) / c);
 }
 
 double mFlow::CanonicalFunction::f(double x)
