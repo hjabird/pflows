@@ -27,14 +27,19 @@ int main()
 	HBTK::CubicSpline1D camber = foil.get_camber_spline();
 
 	sim.semichord = 0.5;
-	sim.pitch_location = -1;
+	sim.pitch_location = 1;
 	sim.delta_t = 0.01;
 	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 0 });
-	mFlow::EldredgeSmoothRamp ramp(1, 3, 4, 6, 11, 0.7854, 1, 1);
-	sim.foil_AoA = [&](double t) { return ramp.f(t); };// 0.5 * sin(0.1 * 2 * 3.141 * t); };
-	sim.foil_dAoAdt = [&](double t) { return ramp.dfdx(t); };// 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
-	sim.foil_Z = [](double t) { return 0.0; };// 0.05 * sin(0.1 * 2 * 3.141 * t); };
-	sim.foil_dZdt = [](double t) { return 0.0; };//0.05 * 0.1*2*3.141*cos(0.1*2*3.141*t); };
+	std::unique_ptr<mFlow::CanonicalFunction> ramp_AoA, ramp_Z, mean_AoA, sum;
+	// ramp_AoA = std::make_unique<mFlow::Harmonic>(2 * 3.93, 0.1553, 0);
+	ramp_AoA = std::make_unique<mFlow::EldredgeSmoothRamp>(1, 3, 4, 6, 11, 0.7854, 1, sim.free_stream_velocity.magnitude());
+	mean_AoA = std::make_unique<mFlow::ConstantValue>(0.0);
+	ramp_Z = std::make_unique<mFlow::Harmonic>(2 * 3.93, 0.0, 0);
+	sum = std::make_unique<mFlow::CanonicalFunctionSum>(std::move(ramp_AoA), std::move(mean_AoA));
+	sim.foil_AoA = [&](double t) { return sum->f(t); };// 0.5 * sin(0.1 * 2 * 3.141 * t); };
+	sim.foil_dAoAdt = [&](double t) { return sum->dfdx(t); };// 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
+	sim.foil_Z = [&](double t) { return ramp_Z->f(t); };// 0.05 * sin(0.1 * 2 * 3.141 * t); };
+	sim.foil_dZdt = [&](double t) { return ramp_Z->dfdx(t); };//0.05 * 0.1*2*3.141*cos(0.1*2*3.141*t); };
 	//sim.camber_line = [&](double x) { return camber((x + 1) / 2); };
 	//sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 

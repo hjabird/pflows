@@ -104,3 +104,36 @@ double mFlow::CanonicalFunction::dfdx(double x)
 {
 	return 0.0;
 }
+
+mFlow::ConstantValue::ConstantValue(double value)
+	: value(value)
+{
+	assert(HBTK::check_finite(value));
+}
+
+double mFlow::ConstantValue::f(double x)
+{
+	return value;
+}
+
+double mFlow::ConstantValue::dfdx(double x)
+{
+	return 0.0;
+}
+
+mFlow::CanonicalFunctionSum::CanonicalFunctionSum(std::unique_ptr<CanonicalFunction> summand_1,
+	std::unique_ptr<CanonicalFunction> summand_2)
+	: summand_1(std::move(summand_1)),
+	summand_2(std::move(summand_2))
+{
+}
+
+	double mFlow::CanonicalFunctionSum::f(double x)
+{
+	return summand_1->f(x) + summand_2->f(x);
+}
+
+double mFlow::CanonicalFunctionSum::dfdx(double x)
+{
+	return summand_1->dfdx(x) + summand_2->dfdx(x);
+}

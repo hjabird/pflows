@@ -254,7 +254,7 @@ double mFlow::Ramesh2014::induced_velocity_normal_to_foil_surface(double local_c
 			+ h_dot * sin(alpha)					// Good
 			+ p_ind_vel.x())						// Good
 		- free_stream_velocity.rotated(alpha).y()	// Good
-		- alpha_dot * semichord * (-cos(alpha) - pitch_location)	// Good
+		- alpha_dot * semichord * (local_coordinate - pitch_location)	// Good
 		+ h_dot * cos(alpha)						// Good
 		- p_ind_vel.y();							// Good
 	assert(HBTK::check_finite(wash));

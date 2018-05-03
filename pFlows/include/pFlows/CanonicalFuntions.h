@@ -21,6 +21,9 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
+#include <cassert>
+#include <memory>
+
 namespace mFlow {
 	// Base class. Returns a zero for anything.
 	class CanonicalFunction {
@@ -32,7 +35,8 @@ namespace mFlow {
 	};
 
 	// Harmonic oscillation - amplitude * sin( omega * t + phase_offset)
-	class Harmonic : CanonicalFunction
+	class Harmonic : 
+		public CanonicalFunction
 	{
 	public:
 		Harmonic(double omega, double amplitude, double phase_offset);
@@ -49,7 +53,8 @@ namespace mFlow {
 	// A ramp hold return function defined by Eldredge
 	// f(t) = Amplitude * G(t) / max(G(t)) where G(t) is Eldredge's smooth ramp
 	// See Ramesh 2013 for example.
-	class EldredgeSmoothRamp : CanonicalFunction
+	class EldredgeSmoothRamp : 
+		public CanonicalFunction
 	{
 	public:
 		EldredgeSmoothRamp(double t_rampup_start, double t_rampup_end, 
@@ -75,5 +80,28 @@ namespace mFlow {
 		inline double eld_cosh(double t, double t_ref);
 		inline double eld_sinh(double t, double t_ref);
 
+	};
+
+	// A static value.
+	class ConstantValue : 
+		public CanonicalFunction
+	{
+	public:
+		ConstantValue(double value);
+		virtual double f(double x) override;
+		virtual double dfdx(double x) override;
+		double value;
+	};
+
+	// Sum of two functions.
+	class CanonicalFunctionSum : 
+		public CanonicalFunction
+	{
+	public:
+		CanonicalFunctionSum(std::unique_ptr<CanonicalFunction> summand_1, 
+			std::unique_ptr<CanonicalFunction> summand_2);
+		virtual double f(double x) override;
+		virtual double dfdx(double x) override;
+		std::unique_ptr<CanonicalFunction> summand_1, summand_2;
 	};
 }
