@@ -8,6 +8,8 @@
 #include <HBTK/Checks.h>
 #include <HBTK/Constants.h>
 #include <HBTK/VtkLegacyWriter.h>
+#include <HBTK/VtkUnstructuredDataset.h>
+#include <HBTK/VtkWriter.h>
 
 mFlow::PlanarVortexRingLattice::PlanarVortexRingLattice(int x_extent, int y_extent)
 	: m_geometry(),
@@ -201,6 +203,40 @@ void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
 		else ring_3d[idx3d] = edge_y_vorticity(idx3d[0], idx3d[1] - 1);
 	}
 	writer.append_structured_scalar_point_data(ring_3d, "VorticityYCheating");
+}
+
+void mFlow::PlanarVortexRingLattice::save_to_vtk2(std::ostream & out_stream)
+{
+	HBTK::Vtk::VtkWriter writer;
+	HBTK::Vtk::VtkUnstructuredDataset data;
+	HBTK::CartesianPlane plane(
+		HBTK::CartesianPoint3D({ 0, 0, 0 }),
+		HBTK::CartesianPoint3D({ 1, 0, 0 }),
+		HBTK::CartesianPoint3D({ 0, 1, 0 })
+	);
+	int point_count = 0;
+	for (int ix = 0; ix < m_extent_x; ix++) {
+		for (int iy = 0; iy <= m_extent_y; iy++) {
+			HBTK::CartesianFiniteLine2D edge = edge_x(ix, iy);
+			data.mesh.points.push_back(plane(edge.start()));
+			data.mesh.points.push_back(plane(edge.end()));
+			data.mesh.cells.push_back({ 3, {point_count, point_count + 1} });
+			point_count += 2;
+			data.scalar_cell_data["Vorticity"].push_back(edge_x_vorticity(ix, iy));
+		}
+	}
+	for (int ix = 0; ix <= m_extent_x; ix++) {
+		for (int iy = 0; iy < m_extent_y; iy++) {
+			HBTK::CartesianFiniteLine2D edge = edge_y(ix, iy);
+			data.mesh.points.push_back(plane(edge.start()));
+			data.mesh.points.push_back(plane(edge.end()));
+			data.mesh.cells.push_back({ 3,{ point_count, point_count + 1 } });
+			point_count += 2;
+			data.scalar_cell_data["Vorticity"].push_back(edge_y_vorticity(ix, iy));
+		}
+	}
+	writer.write(out_stream, data);
+	return;
 }
 
 double mFlow::PlanarVortexRingLattice::filament_downwash(

@@ -9,6 +9,7 @@
 #include <HBTK/Constants.h>
 #include <HBTK/CsvWriter.h>
 #include <HBTK/DoubleTable.h>
+#include <HBTK/Generators.h>
 #include <HBTK/Paths.h>
 
 #include "PlanarWakeULLT.h"
@@ -30,12 +31,14 @@ int main(int argc, char* argv[]) {
 	mFlow::PlanarWakeULLT sim;
 	sim.wing_projection = wing;
 	sim.quasi_steady = false;
+	sim.symmetric = true;
+	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
 	int write_vtk_every = 10;
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.pitch_location = 0.0;
-	inner_sol.delta_t = 0.005;
-	inner_sol.free_stream_velocity.x() = 1.;
+	inner_sol.delta_t = 0.002;
+	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
 	inner_sol.foil_AoA = [](double t)->double { return 0.0;  };
 	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
 	inner_sol.foil_Z = [](double t)->double { return 0.00381 * cos(t * 10.3); };
@@ -43,15 +46,15 @@ int main(int argc, char* argv[]) {
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
 
-	int num_inner = 20;
-	for (int i = 0; i < num_inner; i++) {
-		double y_pos = -wing.semispan() + wing.span * (i + 0.5) / num_inner;
+	int num_inner = 4;
+	std::vector<double> inner_y_positions = HBTK::semicircspace(wing.semispan(), 0, num_inner);
+	for (int i = 0; i < num_inner/2; i++) {
 		sim.inner_solution_planes.push_back(HBTK::CartesianPlane(
-			HBTK::CartesianPoint3D({ 0, y_pos, 0 }),
-			HBTK::CartesianPoint3D({ 1, y_pos, 0 }),
-			HBTK::CartesianPoint3D({ 0, y_pos, 1 })));
+			HBTK::CartesianPoint3D({ 0, inner_y_positions[i], 0 }),
+			HBTK::CartesianPoint3D({ 1, inner_y_positions[i], 0 }),
+			HBTK::CartesianPoint3D({ 0, inner_y_positions[i], 1 })));
 		mFlow::Ramesh2014 inner_sol_y = inner_sol;
-		inner_sol_y.semichord = wing.semichord(y_pos);
+		inner_sol_y.semichord = wing.semichord(inner_y_positions[i]);
 		sim.inner_solutions.emplace_back(inner_sol_y);
 	}
 
@@ -67,7 +70,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 300;
+	int n_steps = 1000;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
@@ -82,7 +85,7 @@ int main(int argc, char* argv[]) {
 				table_dw[ic + 2].push_back(sim.inner_solutions[ic].free_stream_velocity.y());
 			}
 			if (i%write_vtk_every == 0) {
-				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtk").c_str()));
+				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtu").c_str()));
 			}
 		}
 	}

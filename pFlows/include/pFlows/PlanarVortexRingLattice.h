@@ -46,6 +46,7 @@ namespace mFlow {
 		int size() const;
 
 		void save_to_vtk(std::ostream & out_stream);
+		void save_to_vtk2(std::ostream & out_stream);
 
 	private:
 		int m_extent_x;
