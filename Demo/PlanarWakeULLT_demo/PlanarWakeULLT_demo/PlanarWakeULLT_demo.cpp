@@ -35,8 +35,13 @@ int main(int argc, char* argv[]) {
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
 	int write_vtk_every = 10;
 
+	HBTK::AerofoilGeometry aerofoil = HBTK::AerofoilGenerators::sd7003();
+	HBTK::CubicSpline1D camber_line = aerofoil.get_camber_spline();
+
 	mFlow::Ramesh2014 inner_sol;
-	inner_sol.pitch_location = 0.0;
+	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
+	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
+	inner_sol.pitch_location = 0.0; 
 	inner_sol.delta_t = 0.002;
 	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
 	inner_sol.foil_AoA = [](double t)->double { return 0.1047;  };

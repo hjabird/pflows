@@ -96,7 +96,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	std::vector<double> vortex_x_positions(inner_solution_y_positions.size());
 	for (int ix = num_wake_points - 1; ix >= 0 ; ix--) {
 		for (int iy = 0; iy < (int)m_inner_solution_ordering.size(); iy++) {
-			vortex_x_positions[iy] = inner_solutions[reindexed_inner_solution(iy)].m_vortex_particles[ix].position.x()
+			vortex_x_positions[iy] = inner_solutions[reindexed_inner_solution(iy)].m_te_vortex_particles[ix].position.x()
 				- wing_projection.trailing_edge_X(origin(iy).y());
 		}
 		// We use cubic spline interpolation. Edges might be dodgy - perhaps constrain
@@ -112,7 +112,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 			for (int iy = 0; iy < (int)inner_solution_y_positions.size(); iy++) {
 				// And use the spine's curvature to correct for the vorticity of the vortex ring.
 				double angle = atan(line_spline.derivative(segments[iy].midpoint().y()));
-				wake_vorticity_acc[iy] += inner_solutions[reindexed_inner_solution(iy)].m_vortex_particles[ix].vorticity
+				wake_vorticity_acc[iy] += inner_solutions[reindexed_inner_solution(iy)].m_te_vortex_particles[ix].vorticity
 					/ cos(angle);
 				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
 			}
@@ -143,8 +143,8 @@ void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice 
 				downwash += wake.patch_y_filament_downwash_inclusive(in_plane_coordinates[i],
 					1, wake_depth, 0, wake_width);
 				// Now remove the W_wi as if were of infinite span (avoid W_wi in inner AND outer solution)
-				for (int j = 0; j < (int)inner_solutions[i].m_vortex_particles.size(); j++) {
-					auto & particle = inner_solutions[i].m_vortex_particles[j];
+				for (int j = 0; j < (int)inner_solutions[i].m_te_vortex_particles.size(); j++) {
+					auto & particle = inner_solutions[i].m_te_vortex_particles[j];
 					downwash += particle.vorticity / (2 * HBTK::Constants::pi() * (particle.position.x() - trailing_edge_x));
 				}
 			}
@@ -163,7 +163,7 @@ void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice 
 
 int mFlow::PlanarWakeULLT::num_vortex_particles_per_inner_solution()
 {
-	return (int) inner_solutions[0].m_vortex_particles.size();
+	return (int) inner_solutions[0].m_te_vortex_particles.size();
 }
 
 std::vector<HBTK::CartesianFiniteLine2D> mFlow::PlanarWakeULLT::segment_span_by_inner_solution()
@@ -269,9 +269,9 @@ bool mFlow::PlanarWakeULLT::valid_inner_solution_plane_count()
 
 bool mFlow::PlanarWakeULLT::matching_inner_solution_vortex_count()
 {
-	int count = inner_solutions[0].m_vortex_particles.size();
+	int count = inner_solutions[0].m_te_vortex_particles.size();
 	for (auto & solution : inner_solutions) {
-		if (count != solution.m_vortex_particles.size()) return false;
+		if (count != solution.m_te_vortex_particles.size()) return false;
 	}
 	return true;
 }

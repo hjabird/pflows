@@ -66,9 +66,13 @@ namespace mFlow {
 		void advance_one_step();	
 
 		// Vortex Particles:
-		VortexGroup2D m_vortex_particles;
-		std::vector<HBTK::CartesianVector2D> m_vortex_particle_velocities;
+		VortexGroup2D m_te_vortex_particles;
+		std::vector<HBTK::CartesianVector2D> m_te_vortex_particle_velocities;
+		VortexGroup2D m_le_vortex_particles;
+		std::vector<HBTK::CartesianVector2D> m_le_vortex_particle_velocities;
 		// Returns number of particles in wake.
+		int number_of_te_particles();
+		int number_of_le_particles();
 		int number_of_particles();
 
 
@@ -81,6 +85,11 @@ namespace mFlow {
 		// For -1 = LE, 1 = TE, get the velocity of a point on the foil described
 		// by foil_coordinate(eta)
 		HBTK::CartesianVector2D foil_velocity(double eta);
+
+		// Shed leading edge vortices
+		bool lev_shedding;
+		// The parameter that governs the onset of shedding.
+		double critical_leading_edge_suction;
 
 		// Force:
 
@@ -115,7 +124,7 @@ namespace mFlow {
 		void convect_particles();
 
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
-		void shed_new_particle_with_zero_vorticity();
+		void shed_new_trailing_edge_particle_with_zero_vorticity();
 
 
 		// Get the velocity induced at a point by the all the vortex particles
@@ -129,6 +138,12 @@ namespace mFlow {
 		// Adjust the vorticity of the last shed particle to enforce 
 		// Kelvin's condition Eq2.6
 		void adjust_last_shed_vortex_particle_for_kelvin_condition();
+
+		// If we're shedding LEVs and we've hit the criticality condition, 
+		// shed a LEV, and fiddle with the TEV and LEV vorticities to 
+		// satify A_0 = LESPcrit and kelvin condition.
+		void shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
+		void shed_new_leading_edge_particle_with_zero_vorticity();
 
 		// For a wake, compute the fourier terms describing the aerofoils
 		// vorticity distribution.
@@ -147,6 +162,14 @@ namespace mFlow {
 		std::vector<double> m_previous_fourier_terms;
 		// A method to extract the time rate of change of fourier terms
 		std::vector<double> rate_of_change_of_fourier_terms();
+
+		// Compute the terms used for applying the Kelvin condition.
+		double known_wake_kelvin_condition_effect_term(); // I_1
+		double last_tev_kelvin_condition_effect_term();	// I_2
+		double new_lev_kelvin_condition_effect_term(); // I_3
+		double known_wake_A_0_effect_term(); // J_1
+		double last_tev_A_0_effect_term(); // J_2
+		double new_lev_A_0_effect_term(); // J_3
 
 
 		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
