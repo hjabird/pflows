@@ -51,7 +51,7 @@ void mFlow::PlanarWakeULLT::initialise()
 void mFlow::PlanarWakeULLT::wake_to_vtk(std::ostream &out_stream)
 {
 	auto wake = generate_planar_wake_object();
-	wake.save_to_vtk2(out_stream);
+	wake.save_to_vtk(out_stream);
 }
 
 double mFlow::PlanarWakeULLT::compute_lift_coefficient()
