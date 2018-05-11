@@ -197,7 +197,6 @@ void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
 			data.scalar_cell_data["Vorticity"].push_back(edge_y_vorticity(ix, iy));
 		}
 	}
-	writer.ascii = true;
 	writer.appended = false;
 	writer.open_file(out_stream, HBTK::Vtk::VtkWriter::UnstructuredGrid);
 	writer.write_piece(out_stream, data);

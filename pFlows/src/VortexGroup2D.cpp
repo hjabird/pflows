@@ -25,6 +25,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include <HBTK/CartesianVector.h>
+#include <HBTK/VtkUnstructuredDataset.h>
+#include <HBTK/VtkWriter.h>
 
 int mFlow::VortexGroup2D::size() const
 {
@@ -79,6 +81,24 @@ void mFlow::VortexGroup2D::erase(int index)
 	else {
 		m_last_added_vortex -= 1;
 	}
+	return;
+}
+
+void mFlow::VortexGroup2D::save_to_vtk(std::ostream & ostream, const HBTK::CartesianPlane & plane) const
+{
+	HBTK::Vtk::VtkWriter writer;
+	HBTK::Vtk::VtkUnstructuredDataset data;
+	for (int i = 0; i < size(); i++) {
+		auto particle = operator[](i);
+		data.mesh.points.push_back(plane(particle.position));
+		data.mesh.cells.push_back({ 1, std::vector<int>({ i }) });
+		data.scalar_point_data["Vorticity"].push_back(particle.vorticity);
+	}
+	writer.ascii = true;
+	writer.appended = false;
+	writer.open_file(ostream, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
+	writer.write_piece(ostream, data);
+	writer.close_file(ostream);
 	return;
 }
 

@@ -60,6 +60,13 @@ namespace mFlow {
 		// Get the number of vortex particles in the inner solution.
 		int num_vortex_particles_per_inner_solution();
 
+		// The vortex ring strengths 
+		std::vector<std::vector<double>> m_original_ring_strengths;
+
+		// Correct for vortex filament curvature.
+		void add_new_ring_to_ring_strengths();
+		void update_inner_solution_vorticities_for_vortex_filament_curvature(PlanarVortexRingLattice & wake);
+
 		// Turn the span of the wing into a set of segments, adding in symmetry if needed.
 		std::vector<HBTK::CartesianFiniteLine2D> segment_span_by_inner_solution();
 

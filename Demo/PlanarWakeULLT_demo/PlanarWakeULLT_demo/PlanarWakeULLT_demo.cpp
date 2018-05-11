@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 	sim.quasi_steady = false;
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
-	int write_vtk_every = 10;
+	int write_vtk_every = 1;
 
 	HBTK::AerofoilGeometry aerofoil = HBTK::AerofoilGenerators::sd7003();
 	HBTK::CubicSpline1D camber_line = aerofoil.get_camber_spline();
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
 	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
 	inner_sol.pitch_location = 0.0; 
-	inner_sol.delta_t = 0.002;
+	inner_sol.delta_t = 0.001;
 	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
 	inner_sol.foil_AoA = [](double t)->double { return 0.1047;  };
 	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 500;
+	int n_steps = 201;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";

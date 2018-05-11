@@ -32,19 +32,23 @@ HBTK::CartesianPlane mFlow::PlanarWakeULLT::wake_plane() const
 void mFlow::PlanarWakeULLT::advance_one_step()
 {
 	PlanarVortexRingLattice wake = generate_planar_wake_object();
+	update_inner_solution_vorticities_for_vortex_filament_curvature(wake);
 	set_inner_solution_downwash(wake);
 #pragma omp parallel for
 	for (int i = 0; i < (int) inner_solutions.size(); i++) {
 		inner_solutions[i].advance_one_step();
 	}
+	add_new_ring_to_ring_strengths();
 }
 
 void mFlow::PlanarWakeULLT::initialise()
 {
 	for (auto & inner_sol : inner_solutions) {
 		inner_sol.initialise();
+		assert(inner_sol.m_te_vortex_particles.size() == 0);
 	}
 	recalculate_inner_solution_order();
+	m_original_ring_strengths.resize(inner_solutions.size());
 }
 
 
@@ -112,8 +116,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 			for (int iy = 0; iy < (int)inner_solution_y_positions.size(); iy++) {
 				// And use the spine's curvature to correct for the vorticity of the vortex ring.
 				double angle = atan(line_spline.derivative(segments[iy].midpoint().y()));
-				wake_vorticity_acc[iy] += inner_solutions[reindexed_inner_solution(iy)].m_te_vortex_particles[ix].vorticity
-					/ cos(angle);
+				wake_vorticity_acc[iy] += m_original_ring_strengths[reindexed_inner_solution(iy)][ix];
 				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
 			}
 		}
@@ -287,4 +290,27 @@ bool mFlow::PlanarWakeULLT::correct_ordering_of_inner_solution_planes()
 		return y_a < y_b;
 	});
 	return good;
+}
+
+
+void mFlow::PlanarWakeULLT::add_new_ring_to_ring_strengths(void) 
+{
+	for (int i = 0; i < (int)inner_solutions.size(); i++) {
+		m_original_ring_strengths[i].push_back(
+			inner_solutions[i].m_te_vortex_particles.most_recently_added().vorticity);
+	}
+	return;
+}
+
+void mFlow::PlanarWakeULLT::update_inner_solution_vorticities_for_vortex_filament_curvature(PlanarVortexRingLattice & wake)
+{
+	for (int i = 0; i < (int)inner_solutions.size(); i++) {
+		int y_idx = *(std::find(m_inner_solution_ordering.begin(),
+			m_inner_solution_ordering.end(), i));
+		for (int ix = 0; ix < num_vortex_particles_per_inner_solution(); ix++) {
+			HBTK::CartesianVector2D tangent = wake.edge_y(ix + 1, y_idx).vector();
+			inner_solutions[i].m_te_vortex_particles[ix].vorticity =
+				m_original_ring_strengths[i][ix] * tangent.y() / tangent.magnitude();
+		}
+	}
 }

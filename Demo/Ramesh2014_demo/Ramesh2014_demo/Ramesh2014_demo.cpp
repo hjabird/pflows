@@ -102,12 +102,7 @@ int main()
 			HBTK::CartesianPoint3D({ 1,0,0 }),
 			HBTK::CartesianPoint3D({ 0,0,1 })
 		);
-		for (int i = 0; i < npts; i++) {
-			auto particle = sim.m_te_vortex_particles[i];
-			data_tev.mesh.points.push_back(plane(particle.position));
-			data_tev.mesh.cells.push_back({ 1, std::vector<int>({i}) });
-			data_tev.scalar_point_data["Vorticity"].push_back(particle.vorticity);
-		}
+		sim.m_te_vortex_particles.save_to_vtk(particles_file, plane);
 		auto positions = HBTK::linspace(-1, 1, 30);
 		for (int i = 0; i < 30; i++) {
 			HBTK::CartesianPoint2D pnt = sim.foil_coordinate(positions[i]);
@@ -117,11 +112,8 @@ int main()
 			data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
 		}
 		HBTK::Vtk::VtkWriter writer;
-		writer.appended = false;
 		writer.ascii = true;
-		writer.open_file(particles_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
-		writer.write_piece(particles_file, data_tev);
-		writer.close_file(particles_file);
+		writer.appended = false;
 		writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
 		writer.write_piece(foil_file, data_foil);
 		writer.close_file(foil_file);

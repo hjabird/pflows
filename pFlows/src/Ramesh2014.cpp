@@ -41,7 +41,7 @@ mFlow::Ramesh2014::Ramesh2014()
 	pitch_location(0),
 	number_of_fourier_terms(0),
 	wake_self_convection(true),
-	lev_shedding(true),
+	lev_shedding(false),
 	critical_leading_edge_suction(1e99)
 {
 }
@@ -546,8 +546,10 @@ double mFlow::Ramesh2014::known_wake_kelvin_condition_effect_term()
 		double local_x = -cos(theta);		// [0, pi] -> x in [-1,1] -> [LE, TE]
 		double T_1 = induced_velocity_normal_to_foil_surface(local_x);
 		return T_1 * (cos(theta) - 1) * 2.0 * semichord;
-	};
-	double I_known = HBTK::adaptive_gauss_lobatto_integrate(known_integrand, 1e-6, 0.0, HBTK::Constants::pi());
+	};	
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
+	quad.linear_remap(0, HBTK::Constants::pi());
+	double I_known = quad.integrate(known_integrand);
 	assert(HBTK::check_finite(I_known));
 	return I_known;
 }
@@ -611,7 +613,9 @@ double mFlow::Ramesh2014::known_wake_A_0_effect_term()
 		double T_1 = induced_velocity_normal_to_foil_surface(local_x);
 		return T_1;
 	};
-	double I_known = HBTK::adaptive_gauss_lobatto_integrate(known_integrand, 1e-6, 0.0, HBTK::Constants::pi());
+	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
+	quad.linear_remap(0, HBTK::Constants::pi());
+	double I_known = quad.integrate(known_integrand);
 	I_known *= -1. / (HBTK::Constants::pi() * free_stream_velocity.magnitude());
 	assert(HBTK::check_finite(I_known));
 	return I_known;

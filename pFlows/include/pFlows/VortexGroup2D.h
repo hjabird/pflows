@@ -21,8 +21,10 @@ You should have received a copy of the GNU General Public License
 along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
+#include <ostream>
 #include <vector>
 
+#include <HBTK/CartesianPlane.h>
 #include <HBTK/CartesianPoint.h>
 
 namespace mFlow {
@@ -49,7 +51,8 @@ namespace mFlow {
 		// Remove a vortex by index
 		void erase(int index);
 
-
+		// Save to .vtu file
+		void save_to_vtk(std::ostream & ostream, const HBTK::CartesianPlane & plane) const;
 
 	private:
 		std::vector<Vortex2D> m_vortices;	// 
