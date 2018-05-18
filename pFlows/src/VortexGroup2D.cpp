@@ -94,7 +94,6 @@ void mFlow::VortexGroup2D::save_to_vtk(std::ostream & ostream, const HBTK::Carte
 		data.mesh.cells.push_back({ 1, std::vector<int>({ i }) });
 		data.scalar_point_data["Vorticity"].push_back(particle.vorticity);
 	}
-	writer.ascii = true;
 	writer.appended = false;
 	writer.open_file(ostream, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
 	writer.write_piece(ostream, data);

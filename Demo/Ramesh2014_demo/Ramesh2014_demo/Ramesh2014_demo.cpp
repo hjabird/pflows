@@ -72,7 +72,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	for (int i = 0; i < 200; i++) {
+	for (int i = 0; i < 1001; i++) {
 		sim.advance_one_step();
 
 		step_data["Step"].emplace_back(i + 1);
@@ -112,7 +112,6 @@ int main()
 			data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
 		}
 		HBTK::Vtk::VtkWriter writer;
-		writer.ascii = true;
 		writer.appended = false;
 		writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
 		writer.write_piece(foil_file, data_foil);

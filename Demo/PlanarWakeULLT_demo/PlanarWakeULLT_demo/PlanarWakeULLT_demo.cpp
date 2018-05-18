@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
 	int write_vtk_every = 1;
+	bool write_inner_solutions = true;
 
 	HBTK::AerofoilGeometry aerofoil = HBTK::AerofoilGenerators::sd7003();
 	HBTK::CubicSpline1D camber_line = aerofoil.get_camber_spline();
@@ -46,12 +47,12 @@ int main(int argc, char* argv[]) {
 	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
 	inner_sol.foil_AoA = [](double t)->double { return 0.1047;  };
 	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
-	inner_sol.foil_Z = [](double t)->double { return 0.00381 * cos(t * 10.3); };
-	inner_sol.foil_dZdt = [](double t)->double { return -0.00381 * 10.3 * sin(t * 10.3); };
+	inner_sol.foil_Z = [](double t)->double { return 0.0; }; // 0.00381 * cos(t * 10.3); };
+	inner_sol.foil_dZdt = [](double t)->double { return 0.0; };//-0.00381 * 10.3 * sin(t * 10.3); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
 
-	int num_inner = 10;
+	int num_inner = 6;
 	std::vector<double> inner_y_positions = HBTK::semicircspace(wing.semispan(), 0, num_inner);
 	for (int i = 0; i < num_inner/2; i++) {
 		sim.inner_solution_planes.push_back(HBTK::CartesianPlane(
@@ -75,7 +76,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 201;
+	int n_steps = 1501;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
@@ -91,6 +92,15 @@ int main(int argc, char* argv[]) {
 			}
 			if (i%write_vtk_every == 0) {
 				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtu").c_str()));
+				if (write_inner_solutions) {
+					for (int j = 0; j < (int)sim.inner_solutions.size(); j++) {
+						HBTK::CartesianPlane plane = sim.inner_solution_planes[j];
+						plane.origin() = plane.origin() - HBTK::CartesianVector3D({ wing.semichord(plane.origin().y()), 0, 0 });
+						sim.inner_solutions[j].m_te_vortex_particles.save_to_vtk(
+							std::ofstream(("output/in_vort" + std::to_string(j) + "_" + std::to_string(i) + ".vtu").c_str()),
+							plane);
+					}
+				}
 			}
 		}
 	}

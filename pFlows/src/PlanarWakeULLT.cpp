@@ -101,6 +101,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 	for (int ix = num_wake_points - 1; ix >= 0 ; ix--) {
 		for (int iy = 0; iy < (int)m_inner_solution_ordering.size(); iy++) {
 			vortex_x_positions[iy] = inner_solutions[reindexed_inner_solution(iy)].m_te_vortex_particles[ix].position.x()
+				// - inner_solutions[reindexed_inner_solution(iy)].foil_coordinate(1.).x();
 				- wing_projection.trailing_edge_X(origin(iy).y());
 		}
 		// We use cubic spline interpolation. Edges might be dodgy - perhaps constrain
@@ -310,7 +311,7 @@ void mFlow::PlanarWakeULLT::update_inner_solution_vorticities_for_vortex_filamen
 		for (int ix = 0; ix < num_vortex_particles_per_inner_solution(); ix++) {
 			HBTK::CartesianVector2D tangent = wake.edge_y(ix + 1, y_idx).vector();
 			inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-				m_original_ring_strengths[i][ix] * tangent.y() / tangent.magnitude();
+				m_original_ring_strengths[i][ix] * abs(tangent.y()) / tangent.magnitude();
 		}
 	}
 }
