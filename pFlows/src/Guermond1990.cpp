@@ -66,9 +66,20 @@ double mFlow::Guermond1990::downwash(double y)
 	return term_1 + term_2 + term_3;
 }
 
+double mFlow::Guermond1990::lift_coefficient()
+{
+	auto integrand = [&](double y)->double {
+		return Gamma(y);
+	};
+	auto quad = HBTK::gauss_legendre(15);
+	double integral = quad.integrate(integrand);
+	integral /= wing.area();
+	return integral;
+}
+
 double mFlow::Guermond1990::moment_about_midchord_no_camber_slope(double y_global)
 {
-	double y = y_global / wing.semispan();
+	double y = y_global / wing.span;
 	return Gamma_0(y) * wing.chord(y_global) * ( 0.25 - 0.5 );
 }
 
@@ -82,13 +93,13 @@ double mFlow::Guermond1990::downwash_integral1(double y)
 	double gamma0y = Gamma_0(y);
 	double dgamma0y_dy = HBTK::central_difference_O1A2([&](double x) { return Gamma_0(x); }, y);
 
-	auto integrand = [&](double phi) {
-		double term_1 = (Gamma_0(phi) - gamma0y - (phi - y) * dgamma0y_dy) / pow(y - phi, 2);
-		double term_2 = 1 - (phi > y ? 1. : -1.) * aux_downwash_function(phi);
+	auto integrand = [&](double psi) {
+		double term_1 = (Gamma_0(psi) - gamma0y - (psi - y) * dgamma0y_dy) / pow(y - psi, 2);
+		double term_2 = 1 - (psi > y ? 1. : -1.) * aux_downwash_function(psi);
 		return term_1 * term_2;
 	};
 	auto quad = HBTK::gauss_legendre(20);
-	integral = quad.integrate(integrand);
+	integral = wing.semispan() * quad.integrate(integrand);
 	assert(HBTK::check_finite(integral));
 	return integral;
 }
@@ -105,7 +116,7 @@ double mFlow::Guermond1990::downwash_integral2(double y)
 	term_22 = sin(wing.midchord_sweep_angle(y * wing.semispan()));
 	term_2 = term_21 * term_22;
 
-	term_3 = log(1. - y * y) / (2. * wing.midchord_radius_of_curvature(wing.semispan() * y));
+	term_3 = - log(1. - y * y) / (2. * wing.midchord_radius_of_curvature(wing.semispan() * y));
 
 	auto quad = HBTK::gauss_legendre(20);
 	double static_aux_term = aux_downwash_function(y);
@@ -150,5 +161,5 @@ double mFlow::Guermond1990::aux_downwash_function(double y)
 double mFlow::Guermond1990::daux_downwash_function_dy(double y)
 {
 	assert(abs(y) <= 1.);
-	return 1./ (2. * wing.midchord_radius_of_curvature(y));
+	return 1./ (2. * wing.midchord_radius_of_curvature(y* wing.semispan()));
 }

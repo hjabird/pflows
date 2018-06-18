@@ -1,5 +1,7 @@
 #pragma once
-
+// Doesn't currently work:
+//	At high aspect ratio, the right result is produced, but as the aspect
+//  ratio decreases the reduction in lift is not as big as it should be.
 
 #include <functional>
 #include "WingProjectionGeometry.h"
@@ -31,10 +33,16 @@ namespace mFlow {
 		// Downwash in the Prandtl sense. Eq39 - Eq41
 		double downwash(double y);
 
+		// Compute the lift coefficient of the wing
+		double lift_coefficient();
+
 		// Possible value for moment_about_midchord:
 		double moment_about_midchord_no_camber_slope(double y_global);
 
 	private:
+		// Coordinate notes: y_local is [-1, 1]
+
+		// Eq 31 term 1, 2, 3.
 		double downwash_integral1(double y);
 		double downwash_integral2(double y);
 		double downwash_integral3(double y);
