@@ -6,4 +6,4 @@ add_subdirectory(PlanarWakeULLT_demo)
 add_subdirectory(Ramesh2014_demo)
 add_subdirectory(Yan2014)
 add_subdirectory(Guermond1990_demo)
-
+add_subdirectory(PrandtlLiftingLine_demo)

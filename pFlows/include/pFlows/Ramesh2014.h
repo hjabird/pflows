@@ -25,6 +25,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <functional>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include <HBTK/CartesianPoint.h>
@@ -109,8 +110,10 @@ namespace mFlow {
 		// over the aerofoil.
 		std::vector<double> get_fourier_terms();
 
-		// Get the total vorticity of all vortex particles in the wake.
+		// Get the total vorticity that has been shed into the wake.
 		double total_shed_vorticity();
+		// Reset vorticity based on the sum of the vorticities in the particle collector.
+		double set_total_shed_vorticity_to_wake_vorticity();
 
 		// Compute the aerofoil's bound vorticity.
 		double bound_vorticity();
@@ -126,7 +129,6 @@ namespace mFlow {
 		// Shed a new vortex particle from the trailing edge. Vorticity not calculated.
 		void shed_new_trailing_edge_particle_with_zero_vorticity();
 
-
 		// Get the velocity induced at a point by the all the vortex particles
 		// in the wake. Invalid if location is that of a particle (singular).
 		HBTK::CartesianVector2D get_particle_induced_velocity(
@@ -134,6 +136,10 @@ namespace mFlow {
 
 		// Get induced velocity normal to foil surface - Eq.2.5
 		double induced_velocity_normal_to_foil_surface(double local_coordinate);
+		std::unordered_map<double, double> m_downwash_cache;
+		void add_last_shed_te_vortex_to_downwash_cache();
+		void add_last_shed_le_vortex_to_downwash_cache();
+		void remove_last_shed_te_vortex_from_downwash_cache();
 
 		// Adjust the vorticity of the last shed particle to enforce 
 		// Kelvin's condition Eq2.6
@@ -171,6 +177,8 @@ namespace mFlow {
 		double last_tev_A_0_effect_term(); // J_2
 		double new_lev_A_0_effect_term(); // J_3
 
+		// Wake vorticity
+		double m_wake_vorticity;
 
 		// The size of the vortex core used for by Ramesh. Eq2.14 and Eq2.15
 		double vortex_core_size() const;

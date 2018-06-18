@@ -42,7 +42,8 @@ mFlow::Ramesh2014::Ramesh2014()
 	number_of_fourier_terms(0),
 	wake_self_convection(true),
 	lev_shedding(false),
-	critical_leading_edge_suction(1e99)
+	critical_leading_edge_suction(1e99),
+	m_wake_vorticity(0)
 {
 }
 
@@ -99,11 +100,13 @@ void mFlow::Ramesh2014::initialise()
 	compute_fourier_terms();
 	time += delta_t;
 	m_previous_fourier_terms = m_fourier_terms;
+	m_wake_vorticity = total_shed_vorticity();
 }
 
 void mFlow::Ramesh2014::advance_one_step()
 {
 	convect_particles();
+	m_downwash_cache.clear();
 	shed_new_trailing_edge_particle_with_zero_vorticity();
 	adjust_last_shed_vortex_particle_for_kelvin_condition();
 	shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
@@ -111,6 +114,7 @@ void mFlow::Ramesh2014::advance_one_step()
 	compute_fourier_terms();
 	calculate_velocities();
 	time += delta_t;
+	m_downwash_cache.clear();
 }
 
 int mFlow::Ramesh2014::number_of_te_particles()
@@ -140,6 +144,9 @@ void mFlow::Ramesh2014::calculate_velocities()
 	for (auto & particle_vel : m_te_vortex_particle_velocities) {
 		particle_vel.as_array() = { 0, 0 };
 	}
+	for (auto & particle_vel : m_le_vortex_particle_velocities) {
+		particle_vel.as_array() = { 0, 0 };
+	}
 
 	// Velocities induced on particles by other particles (N-Body problem)
 	if(wake_self_convection){	// checked.
@@ -152,6 +159,23 @@ void mFlow::Ramesh2014::calculate_velocities()
 					ith_particle_pos, vc_size);
 				m_te_vortex_particle_velocities[j] += vel * m_te_vortex_particles[i].vorticity;
 				m_te_vortex_particle_velocities[i] -= vel * m_te_vortex_particles[j].vorticity;
+			}
+			for (int j = 0; j < number_of_le_particles(); j++) {
+				HBTK::CartesianVector2D vel;	// Cartesian velocity
+				vel = unity_vortex_blob_induced_vel(m_le_vortex_particles[j].position,
+					ith_particle_pos, vc_size);
+				m_le_vortex_particle_velocities[j] += vel * m_te_vortex_particles[i].vorticity;
+				m_te_vortex_particle_velocities[i] -= vel * m_le_vortex_particles[j].vorticity;
+			}
+		}
+		for (int i = 0; i < number_of_le_particles(); i++) {
+			HBTK::CartesianPoint2D ith_particle_pos = m_le_vortex_particles[i].position;
+			for (int j = 0; j < i; j++) {
+				HBTK::CartesianVector2D vel;	// Cartesian velocity
+				vel = unity_vortex_blob_induced_vel(m_le_vortex_particles[j].position,
+					ith_particle_pos, vc_size);
+				m_le_vortex_particle_velocities[j] += vel * m_le_vortex_particles[i].vorticity;
+				m_le_vortex_particle_velocities[i] -= vel * m_le_vortex_particles[j].vorticity;
 			}
 		}
 	}
@@ -174,15 +198,26 @@ void mFlow::Ramesh2014::calculate_velocities()
 			auto integrand_inner = [&](double local_pos) { return u_integrand_outer(local_pos, mes_pnt); };
 			m_te_vortex_particle_velocities[i] += quad.integrate(integrand_inner);
 		}
+		for (int i = 0; i < number_of_le_particles(); i++) {
+			HBTK::CartesianPoint2D mes_pnt = m_le_vortex_particles[i].position;
+			auto integrand_inner = [&](double local_pos) { return u_integrand_outer(local_pos, mes_pnt); };
+			m_le_vortex_particle_velocities[i] += quad.integrate(integrand_inner);
+		}
 	}
 
 	// Velocity induced by free stream.
 	for (auto & particle_vel : m_te_vortex_particle_velocities) {
 		particle_vel += free_stream_velocity;
 	}
+	for (auto & particle_vel : m_le_vortex_particle_velocities) {
+		particle_vel += free_stream_velocity;
+	}
 
 	// We're done. Check that we've done something sane:
 	for (auto particle_vel : m_te_vortex_particle_velocities) {
+		assert(HBTK::check_finite(particle_vel));
+	}
+	for (auto particle_vel : m_le_vortex_particle_velocities) {
 		assert(HBTK::check_finite(particle_vel));
 	}
 }
@@ -192,6 +227,9 @@ void mFlow::Ramesh2014::convect_particles()
 	// Forward Euler scheme - justified by Ramesh et al.
 	for (int i = 0; i < number_of_te_particles(); i++) {
 		m_te_vortex_particles[i].position += m_te_vortex_particle_velocities[i] * delta_t;
+	}
+	for (int i = 0; i < number_of_le_particles(); i++) {
+		m_le_vortex_particles[i].position += m_le_vortex_particle_velocities[i] * delta_t;
 	}
 	return;
 }
@@ -224,17 +262,26 @@ void mFlow::Ramesh2014::shed_new_trailing_edge_particle_with_zero_vorticity()
 }
 
 double mFlow::Ramesh2014::total_shed_vorticity()
-{	// checked.
+{	
+	return m_wake_vorticity;
+}
+
+double mFlow::Ramesh2014::set_total_shed_vorticity_to_wake_vorticity()
+{// checked.
 	double vorticity = 0;
 	for (int i = 0; i < m_te_vortex_particles.size(); i++) {
 		vorticity += m_te_vortex_particles[i].vorticity;
+	}
+	for (int i = 0; i < m_le_vortex_particles.size(); i++) {
+		vorticity += m_le_vortex_particles[i].vorticity;
 	}
 	if (!HBTK::check_finite(vorticity)) {
 		std::overflow_error("Infinite vorticity: "
 			"The vorticity of the wake was found to be infinite whilst "
 			"running Ramesh2014. " __FILE__ ":" + std::to_string(__LINE__));
 	}
-	return vorticity; 
+	m_wake_vorticity = vorticity;
+	return vorticity;
 }
 
 HBTK::CartesianVector2D mFlow::Ramesh2014::get_particle_induced_velocity(
@@ -249,30 +296,119 @@ HBTK::CartesianVector2D mFlow::Ramesh2014::get_particle_induced_velocity(
 		induced_vel += particle_induced_vel * m_te_vortex_particles[i].vorticity;
 		assert(HBTK::check_finite(particle_induced_vel));
 	}
+	for (int i = 0; i < m_le_vortex_particles.size(); i++) {
+		HBTK::CartesianVector2D particle_induced_vel = unity_vortex_blob_induced_vel(
+			mes_location,
+			m_te_vortex_particles[i].position, vc_size);
+		induced_vel += particle_induced_vel * m_le_vortex_particles[i].vorticity;
+		assert(HBTK::check_finite(particle_induced_vel));
+	}
 	return induced_vel;
 }
 
 double mFlow::Ramesh2014::induced_velocity_normal_to_foil_surface(double local_coordinate)
 {	// checked.
+	double wash;
 	assert(local_coordinate <= 1);
 	assert(local_coordinate >= -1);
-	HBTK::CartesianPoint2D foil_coord = foil_coordinate(local_coordinate);
-	HBTK::CartesianVector2D p_ind_vel = get_particle_induced_velocity(foil_coord);
-	double alpha = foil_AoA(time);
-	double alpha_dot = foil_dAoAdt(time);
-	double h_dot = foil_dZdt(time);
-	double local_camber_slope = camber_slope(local_coordinate);
-	p_ind_vel.rotate(alpha);						// Good
-	double wash = local_camber_slope *
-		(	free_stream_velocity.rotated(alpha).x()	// Good
-			+ h_dot * sin(alpha)					// Good
-			+ p_ind_vel.x())						// Good
-		- free_stream_velocity.rotated(alpha).y()	// Good
-		- alpha_dot * semichord * (local_coordinate - pitch_location)	// Good
-		+ h_dot * cos(alpha)						// Good
-		- p_ind_vel.y();							// Good
-	assert(HBTK::check_finite(wash));
+	if (m_downwash_cache.count(local_coordinate) == 0) {
+		HBTK::CartesianPoint2D foil_coord = foil_coordinate(local_coordinate);
+		HBTK::CartesianVector2D p_ind_vel = get_particle_induced_velocity(foil_coord);
+		double alpha = foil_AoA(time);
+		double alpha_dot = foil_dAoAdt(time);
+		double h_dot = foil_dZdt(time);
+		double local_camber_slope = camber_slope(local_coordinate);
+		p_ind_vel.rotate(alpha);						// Good
+		wash = local_camber_slope *
+			(free_stream_velocity.rotated(alpha).x()	// Good
+				+ h_dot * sin(alpha)					// Good
+				+ p_ind_vel.x())						// Good
+			- free_stream_velocity.rotated(alpha).y()	// Good
+			- alpha_dot * semichord * (local_coordinate - pitch_location)	// Good
+			+ h_dot * cos(alpha)						// Good
+			- p_ind_vel.y();							// Good
+		m_downwash_cache[local_coordinate] = wash;
+		assert(HBTK::check_finite(wash));
+	}
+	else {
+		wash = m_downwash_cache[local_coordinate];
+	}
 	return wash;
+}
+
+void mFlow::Ramesh2014::add_last_shed_te_vortex_to_downwash_cache()
+{
+	auto & particle = m_te_vortex_particles.most_recently_added();
+	for (auto & x : m_downwash_cache) {
+		assert(x.first <= 1);
+		assert(x.first >= -1);
+		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
+		HBTK::CartesianVector2D p_ind_vel 
+			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
+		double alpha = foil_AoA(time);
+		double alpha_dot = foil_dAoAdt(time);
+		double h_dot = foil_dZdt(time);
+		double local_camber_slope = camber_slope(x.first);
+		p_ind_vel.rotate(alpha);						// Good
+		x.second += local_camber_slope *
+			(free_stream_velocity.rotated(alpha).x()	// Good
+				+ h_dot * sin(alpha)					// Good
+				+ p_ind_vel.x())						// Good
+			- free_stream_velocity.rotated(alpha).y()	// Good
+			- alpha_dot * semichord * (x.first - pitch_location)	// Good
+			+ h_dot * cos(alpha)						// Good
+			- p_ind_vel.y();							// Good
+	}
+}
+
+void mFlow::Ramesh2014::add_last_shed_le_vortex_to_downwash_cache()
+{
+	auto & particle = m_le_vortex_particles.most_recently_added();
+	for (auto & x : m_downwash_cache) {
+		assert(x.first <= 1);
+		assert(x.first >= -1);
+		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
+		HBTK::CartesianVector2D p_ind_vel
+			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
+		double alpha = foil_AoA(time);
+		double alpha_dot = foil_dAoAdt(time);
+		double h_dot = foil_dZdt(time);
+		double local_camber_slope = camber_slope(x.first);
+		p_ind_vel.rotate(alpha);						// Good
+		x.second += local_camber_slope *
+			(free_stream_velocity.rotated(alpha).x()	// Good
+				+ h_dot * sin(alpha)					// Good
+				+ p_ind_vel.x())						// Good
+			- free_stream_velocity.rotated(alpha).y()	// Good
+			- alpha_dot * semichord * (x.first - pitch_location)	// Good
+			+ h_dot * cos(alpha)						// Good
+			- p_ind_vel.y();							// Good
+	}
+}
+
+void mFlow::Ramesh2014::remove_last_shed_te_vortex_from_downwash_cache()
+{
+	auto & particle = m_te_vortex_particles.most_recently_added();
+	for (auto & x : m_downwash_cache) {
+		assert(x.first <= 1);
+		assert(x.first >= -1);
+		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
+		HBTK::CartesianVector2D p_ind_vel
+			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
+		double alpha = foil_AoA(time);
+		double alpha_dot = foil_dAoAdt(time);
+		double h_dot = foil_dZdt(time);
+		double local_camber_slope = camber_slope(x.first);
+		p_ind_vel.rotate(alpha);						// Good
+		x.second -= local_camber_slope *
+			(free_stream_velocity.rotated(alpha).x()	// Good
+				+ h_dot * sin(alpha)					// Good
+				+ p_ind_vel.x())						// Good
+			- free_stream_velocity.rotated(alpha).y()	// Good
+			- alpha_dot * semichord * (x.first - pitch_location)	// Good
+			+ h_dot * cos(alpha)						// Good
+			- p_ind_vel.y();							// Good
+	}
 }
 
 
@@ -312,23 +448,33 @@ void mFlow::Ramesh2014::adjust_last_shed_vortex_particle_for_kelvin_condition()
 		I_unknown = quad.integrate(particle_integrand);
 	}
 	m_te_vortex_particles.most_recently_added().vorticity = - (I_known + total_shed_vorticity()) / (1 + I_unknown);
+	m_wake_vorticity += m_te_vortex_particles.most_recently_added().vorticity;
+	add_last_shed_te_vortex_to_downwash_cache();
 	return;
 }
 
 void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vorticities()
 {
+	/*
+	This function is not complete.
+
+	To do:
+	- The check maths.
+	- Integration into m_wake_vorticity stuff.
+	*/
+
 	if (!lev_shedding) { return; }
-	// Compute A_0 term.	
-	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
-	quad.linear_remap(0, HBTK::Constants::pi());
+	// Compute A_0 term.
 	auto integrand = [&](double theta) {
 		double foil_pos = -cos(theta);
 		return induced_velocity_normal_to_foil_surface(foil_pos)
 			/ free_stream_velocity.magnitude();
 	};
-	double A_0 = -0.5 * quad.integrate(integrand) * 2 / HBTK::Constants::pi();
+	double A_0 = -0.5 * HBTK::adaptive_simpsons_integrate(integrand, 1.e-3, 0.0, HBTK::Constants::pi()) * 2 / HBTK::Constants::pi();
 
 	if (abs(A_0) > critical_leading_edge_suction) {
+		remove_last_shed_te_vortex_from_downwash_cache();
+		m_wake_vorticity -= m_te_vortex_particles.most_recently_added().vorticity;
 		shed_new_leading_edge_particle_with_zero_vorticity();
 		double I_1, I_2, I_3, J_1, J_2, J_3;
 		I_1 = known_wake_kelvin_condition_effect_term(); 
@@ -339,11 +485,15 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vo
 		J_3 = new_lev_A_0_effect_term(); 
 		double det = J_3 * (I_2 + 1) - J_2 * (I_3 + 1);
 		m_te_vortex_particles.most_recently_added().vorticity =
-			(1 / det) * (-J_3 * (I_1 + total_shed_vorticity())
+			(1. / det) * (-J_3 * (I_1 + total_shed_vorticity())
 				+ (I_3 + 1) * (J_1 - critical_leading_edge_suction));
 		m_le_vortex_particles.most_recently_added().vorticity =
-			(1 / det) * (-J_2 * (I_1 + total_shed_vorticity())
-				+ (I_2 + 1) * (J_1 - critical_leading_edge_suction));
+			(1. / det) * (J_2 * (I_1 + total_shed_vorticity())
+				- (I_2 + 1) * (J_1 - critical_leading_edge_suction));
+		add_last_shed_le_vortex_to_downwash_cache();
+		add_last_shed_te_vortex_to_downwash_cache();
+		m_wake_vorticity += m_te_vortex_particles.most_recently_added().vorticity;
+		m_wake_vorticity += m_le_vortex_particles.most_recently_added().vorticity;
 	}
 	return;
 }
@@ -375,7 +525,8 @@ void mFlow::Ramesh2014::compute_fourier_terms()
 			return cos(i * theta) * induced_velocity_normal_to_foil_surface(foil_pos)
 				/ free_stream_velocity.magnitude(); 
 		};
-		m_fourier_terms[i] = quad.integrate(integrand) * 2 / HBTK::Constants::pi();
+		// m_fourier_terms[i] = quad.integrate(integrand) * 2 / HBTK::Constants::pi();
+		m_fourier_terms[i] = HBTK::adaptive_simpsons_integrate(integrand, 1.e-3, 0.0, HBTK::Constants::pi()) * 2 / HBTK::Constants::pi();
 	}
 	m_fourier_terms[0] *= -0.5;
 	return;
