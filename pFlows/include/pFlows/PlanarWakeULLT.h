@@ -30,6 +30,8 @@ namespace mFlow {
 		std::vector<HBTK::CartesianPlane> inner_solution_planes;
 		std::vector<mFlow::Ramesh2014> inner_solutions;
 
+		// Vortex ring warping corrections - makes code blow up right now
+		bool vortex_ring_warping_correction;
 		// Symmetry
 		bool symmetric;
 		// The symmetry plane. 

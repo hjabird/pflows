@@ -7,6 +7,7 @@
 #include <HBTK/CartesianVector.h>
 #include <HBTK/Checks.h>
 #include <HBTK/Constants.h>
+#include <HBTK/RuntimeProfiler.h>
 #include <HBTK/VtkLegacyWriter.h>
 #include <HBTK/VtkUnstructuredDataset.h>
 #include <HBTK/VtkWriter.h>
@@ -169,6 +170,7 @@ int mFlow::PlanarVortexRingLattice::size() const
 
 void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
 {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	HBTK::Vtk::VtkWriter writer;
 	HBTK::Vtk::VtkUnstructuredDataset data;
 	HBTK::CartesianPlane plane(

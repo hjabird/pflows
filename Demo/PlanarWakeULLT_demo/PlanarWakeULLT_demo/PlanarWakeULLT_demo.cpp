@@ -11,13 +11,17 @@
 #include <HBTK/DoubleTable.h>
 #include <HBTK/Generators.h>
 #include <HBTK/Paths.h>
+#include <HBTK/RuntimeProfiler.h>
 
 #include "PlanarWakeULLT.h"
 #include "Ramesh2014.h"
 #include "WingGenerators.h"
 #include "WingProjectionGeometry.h"
+#include "CanonicalFuntions.h"
+
 
 int main(int argc, char* argv[]) {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	std::cout << "ULLT Demo (C) HJA Bird 2018\n";
 #ifdef _OPENMP
 	std::cout << "Compiled with OpenMP (Max threads = " << omp_get_max_threads() << ").\n";
@@ -25,34 +29,45 @@ int main(int argc, char* argv[]) {
 	std::cout << "Exe path: " << HBTK::Paths::executable_path() << "\n";
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
-	double aspect_ratio = 4;
-	mFlow::WingGenerators::rectangular(wing, 0.3048, aspect_ratio);
+	double aspect_ratio = 1;
+	mFlow::WingGenerators::rectangular(wing, 0.3048 /4, aspect_ratio);
 
 	mFlow::PlanarWakeULLT sim;
 	sim.wing_projection = wing;
 	sim.quasi_steady = false;
+	sim.vortex_ring_warping_correction = false;
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
-	int write_vtk_every = 1;
+	int write_vtk_every = 100;
 	bool write_inner_solutions = true;
 
-	HBTK::AerofoilGeometry aerofoil = HBTK::AerofoilGenerators::sd7003();
+	HBTK::AerofoilGeometry aerofoil;// = HBTK::AerofoilGenerators::sd7003();
 	HBTK::CubicSpline1D camber_line = aerofoil.get_camber_spline();
 
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
 	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
 	inner_sol.pitch_location = 0.0; 
-	inner_sol.delta_t = 0.001;
+	inner_sol.delta_t = 0.0001905;
 	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
-	inner_sol.foil_AoA = [](double t)->double { return 0.1047;  };
-	inner_sol.foil_dAoAdt = [](double t)->double { return 0; };
-	inner_sol.foil_Z = [](double t)->double { return 0.0; }; // 0.00381 * cos(t * 10.3); };
-	inner_sol.foil_dZdt = [](double t)->double { return 0.0; };//-0.00381 * 10.3 * sin(t * 10.3); };
+//	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
+//		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 0.0764, 0.0764, inner_sol.free_stream_velocity.magnitude());
+	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
+		= std::make_unique<mFlow::Harmonic>(10.3, 0.0*0.0762, 0.0);
+	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile_variable
+		= std::make_unique<mFlow::Harmonic>(10.3, 0.0, 0.0);
+	std::unique_ptr<mFlow::CanonicalFunction> aoa_const
+		= std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(0.01)); //0.06981317);
+	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile
+		= std::make_unique<mFlow::CanonicalFunctionSum>(std::move(aoa_const), std::move(aoa_profile_variable));
+	inner_sol.foil_AoA = [&](double t)->double { return aoa_profile->f(t);  };
+	inner_sol.foil_dAoAdt = [&](double t)->double { return aoa_profile->dfdx(t); };
+	inner_sol.foil_Z = [&](double t)->double { return heave_profile->f(t); };
+	inner_sol.foil_dZdt = [&](double t)->double { return heave_profile->dfdx(t); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
 
-	int num_inner = 6;
+	int num_inner = 8;
 	std::vector<double> inner_y_positions = HBTK::semicircspace(wing.semispan(), 0, num_inner);
 	for (int i = 0; i < num_inner/2; i++) {
 		sim.inner_solution_planes.push_back(HBTK::CartesianPlane(
@@ -76,7 +91,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 1501;
+	int n_steps = 2001;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
@@ -102,6 +117,7 @@ int main(int argc, char* argv[]) {
 					}
 				}
 			}
+			if (i % 100 == 0) HBTK::GlobalRuntimeProfiler::new_timeset_now();
 		}
 	}
 	catch (std::domain_error & e) {

@@ -10,10 +10,13 @@
 #include <HBTK/Constants.h>
 #include <HBTK/CubicSpline1D.h>
 #include <HBTK/StructuredBlockIndexerND.h>
+#include <HBTK/RuntimeProfiler.h>
+
 
 mFlow::PlanarWakeULLT::PlanarWakeULLT()
 	: quasi_steady(false),
-	symmetric(false)
+	symmetric(false),
+	vortex_ring_warping_correction(true)
 {
 }
 
@@ -31,11 +34,13 @@ HBTK::CartesianPlane mFlow::PlanarWakeULLT::wake_plane() const
 
 void mFlow::PlanarWakeULLT::advance_one_step()
 {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	PlanarVortexRingLattice wake = generate_planar_wake_object();
 	update_inner_solution_vorticities_for_vortex_filament_curvature(wake);
 	set_inner_solution_downwash(wake);
 #pragma omp parallel for
 	for (int i = 0; i < (int) inner_solutions.size(); i++) {
+		thread_local HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 		inner_solutions[i].advance_one_step();
 	}
 	add_new_ring_to_ring_strengths();
@@ -60,14 +65,17 @@ void mFlow::PlanarWakeULLT::wake_to_vtk(std::ostream &out_stream)
 
 double mFlow::PlanarWakeULLT::compute_lift_coefficient()
 {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	double coeff = 0;
 	auto segments = segment_span_by_inner_solution();
 	std::vector<double> inner_solution_ys = inner_solution_y_positions();
+#pragma omp parallel for
 	for (int i = 0; i < (int)m_inner_solution_ordering.size(); i++) {
 		double chord = wing_projection.chord(inner_solution_ys[i]);
 		double section_width = segments[i].vector().magnitude();
 		double cl_inner, cd_inner;
 		std::tie(cl_inner, cd_inner) = inner_solutions[reindexed_inner_solution(i)].aerofoil_lift_and_drag_coefficients();
+#pragma omp critical
 		coeff += cl_inner * section_width * chord;
 	}
 	coeff /= wing_projection.area();
@@ -77,6 +85,7 @@ double mFlow::PlanarWakeULLT::compute_lift_coefficient()
 
 mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_object()
 {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	PlanarVortexRingLattice wake(num_vortex_particles_per_inner_solution(),
 		(int)m_inner_solution_ordering.size());
 	if (wake.size() == 0) {
@@ -127,6 +136,7 @@ mFlow::PlanarVortexRingLattice mFlow::PlanarWakeULLT::generate_planar_wake_objec
 
 void mFlow::PlanarWakeULLT::set_inner_solution_downwash(PlanarVortexRingLattice & wake)
 {
+	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	std::vector<HBTK::CartesianPoint3D> coordinates;
 	for (auto & plane : inner_solution_planes) {
 		coordinates.push_back(plane.origin());
@@ -227,6 +237,7 @@ void mFlow::PlanarWakeULLT::apply_lifting_line_geometry(PlanarVortexRingLattice 
 
 void mFlow::PlanarWakeULLT::recalculate_inner_solution_order()
 {
+	HBTK::RuntimeProfiler( __FUNCTION__, __LINE__, true);
 	std::vector<double> y_coords;
 	for (auto & sol : inner_solution_planes) {
 		y_coords.push_back(sol.origin().y());
@@ -310,8 +321,14 @@ void mFlow::PlanarWakeULLT::update_inner_solution_vorticities_for_vortex_filamen
 			m_inner_solution_ordering.end(), i));
 		for (int ix = 0; ix < num_vortex_particles_per_inner_solution(); ix++) {
 			HBTK::CartesianVector2D tangent = wake.edge_y(ix + 1, y_idx).vector();
-			inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-				m_original_ring_strengths[i][ix] * abs(tangent.y()) / tangent.magnitude();
+			if (!vortex_ring_warping_correction) {
+				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
+					m_original_ring_strengths[i][ix];
+			}
+			else {
+				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
+					m_original_ring_strengths[i][ix] * abs(tangent.y()) / tangent.magnitude();
+			}
 		}
 	}
 }
