@@ -25,7 +25,6 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <functional>
 #include <cassert>
 
-
 #include <HBTK/Integrators.h>
 #include <HBTK/NumericalDifferentiation.h>
 #include <HBTK/Checks.h>

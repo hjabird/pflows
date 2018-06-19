@@ -40,7 +40,6 @@ void mFlow::PlanarWakeULLT::advance_one_step()
 	set_inner_solution_downwash(wake);
 #pragma omp parallel for
 	for (int i = 0; i < (int) inner_solutions.size(); i++) {
-		thread_local HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 		inner_solutions[i].advance_one_step();
 	}
 	add_new_ring_to_ring_strengths();

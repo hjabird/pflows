@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <cassert>
-#include <Eigen\Dense>
+#include <Eigen/Dense>
 
 #include <HBTK/Constants.h>
 #include <HBTK/GaussLegendre.h>

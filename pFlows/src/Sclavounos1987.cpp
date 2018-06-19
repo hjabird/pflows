@@ -24,6 +24,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <functional>
 #include <numeric>
 #include <tuple>
