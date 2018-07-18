@@ -1,6 +1,7 @@
 
 #include <iostream>
 
+#include <HBTK/Constants.h>
 #include <HBTK/Paths.h>
 
 #include "Guermond1990.h"
@@ -12,12 +13,12 @@ int main(int argc, char* argv[]) {
 	std::cout << "Working path: " << HBTK::Paths::current_working_directory() << "\n";
 
 	mFlow::WingProjectionGeometry wing;
-	mFlow::WingGenerators::rectangular(wing, 1, 3);
+	mFlow::WingGenerators::rectangular(wing, 1, 4);
 
 	mFlow::Guermond1990 sim;
 	sim.wing = wing;
-	sim.incidence = [](double x) { return 0.1; };
-	sim.zero_lift_incidence = [](double x) { return 0; };
+	sim.incidence = [](double x) { return HBTK::Constants::degrees_to_radians(1.); };
+	sim.zero_lift_incidence = [](double x) { return 0.0; };
 	sim.moment_about_midchord = [&](double x) { return sim.moment_about_midchord_no_camber_slope(x); };
 
 	std::cout << "Circulation at middle of wing is " << sim.Gamma_0(0.0) << "\n";

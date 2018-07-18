@@ -48,6 +48,7 @@ namespace mFlow {
 		double downwash_integral3(double y);
 
 		// Auxilery function for computing downwash integrals defined in Eq37, Eq38
+		double aux_downwash_function(double y, double psi);
 		double aux_downwash_function(double y);
 		double daux_downwash_function_dy(double y);
 	};

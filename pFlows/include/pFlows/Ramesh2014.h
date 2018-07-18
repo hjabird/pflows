@@ -49,6 +49,7 @@ namespace mFlow {
 		std::function<double(double)> foil_dZdt;	// h_dot(t)
 		std::function<double(double)> foil_AoA;		// alpha(t) (radians)
 		std::function<double(double)> foil_dAoAdt;	// alpha_dot(t) (rad / time)
+		std::function<HBTK::CartesianVector2D(HBTK::CartesianPoint2D, double)> external_purturbation;	// no units.
 
 		// Foil geometry:
 		std::function<double(double)> camber_line;	// Defined in [-1, 1]
@@ -110,7 +111,8 @@ namespace mFlow {
 		// over the aerofoil.
 		std::vector<double> get_fourier_terms();
 
-		// Get the total vorticity that has been shed into the wake.
+		// Get the total vorticity that has been shed into the wake (based on 
+		// summartion of shed particles).
 		double total_shed_vorticity();
 		// Reset vorticity based on the sum of the vorticities in the particle collector.
 		double set_total_shed_vorticity_to_wake_vorticity();
@@ -150,6 +152,7 @@ namespace mFlow {
 		// satify A_0 = LESPcrit and kelvin condition.
 		void shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
 		void shed_new_leading_edge_particle_with_zero_vorticity();
+		bool m_shed_lev_at_last_step;
 
 		// For a wake, compute the fourier terms describing the aerofoils
 		// vorticity distribution.

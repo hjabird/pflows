@@ -38,6 +38,9 @@ namespace mFlow {
 		// Number of vortices that make up the vortex group.
 		int size() const;
 
+		// Total vorticity of the group
+		double vorticity_sum() const;
+
 		// Access a vortex (index in [0, number_of_vortices) ).
 		const Vortex2D & operator[](int index) const;
 		Vortex2D & operator[](int index);

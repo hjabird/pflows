@@ -21,6 +21,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 */////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
+
+#include <HBTK/Checks.h>
 #include <HBTK/Constants.h>
 
 void mFlow::WingGenerators::elliptic(WingProjectionGeometry & wing_obj, double span, double aspect_ratio)
@@ -29,10 +31,14 @@ void mFlow::WingGenerators::elliptic(WingProjectionGeometry & wing_obj, double s
 	aspect_ratio = abs(aspect_ratio);
 	auto max_chord = 4 * span / (aspect_ratio * HBTK::Constants::pi());
 	auto leading_edge = [=](double x_position)->double {
-		return -(max_chord / span)*sqrt(pow(span / 2, 2) - pow(x_position, 2));
+		double p =  -(max_chord / span)*sqrt(pow(span / 2, 2) - pow(x_position, 2));
+		if (!HBTK::check_finite(p)) p = 0.0;
+		return p;
 	};
 	auto trailing_edge = [=](double x_position)->double {
-		return (max_chord / span)*sqrt(pow(span / 2, 2) - pow(x_position, 2));
+		double p = (max_chord / span)*sqrt(pow(span / 2, 2) - pow(x_position, 2));		
+		if (!HBTK::check_finite(p)) p = 0.0;
+		return p;
 	};
 
 	wing_obj.span = span;

@@ -108,6 +108,7 @@ double mFlow::CanonicalFunction::dfdx(double x)
 mFlow::ConstantValue::ConstantValue(double val)
 	: value(val) 
 {
+	assert(HBTK::check_finite(val));
 }
 
 double mFlow::ConstantValue::f(double x)
