@@ -23,6 +23,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <cassert>
+#include <numeric>
 
 #include <HBTK/CartesianVector.h>
 #include <HBTK/VtkUnstructuredDataset.h>
@@ -31,6 +32,15 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 int mFlow::VortexGroup2D::size() const
 {
 	return (int) m_vortices.size();
+}
+
+double mFlow::VortexGroup2D::vorticity_sum() const
+{
+	return std::accumulate(
+		m_vortices.begin(), 
+		m_vortices.end(), 
+		0.0, 
+		[](double sum, Vortex2D b)->double { return sum + b.vorticity; });
 }
 
 const mFlow::VortexGroup2D::Vortex2D & mFlow::VortexGroup2D::operator[](int index) const
