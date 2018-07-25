@@ -55,7 +55,7 @@ namespace mFlow {
 		std::function<double(double)> camber_line;	// Defined in [-1, 1]
 		std::function<double(double)> camber_slope;	// Defined in [-1, 1]
 
-		// Should the wake convect itself? Deafault is yes.
+		// Should the wake convect itself? Default is yes.
 		bool wake_self_convection;
 
 		double time;				// Current simulation time value.
@@ -138,6 +138,10 @@ namespace mFlow {
 
 		// Get induced velocity normal to foil surface - Eq.2.5
 		double induced_velocity_normal_to_foil_surface(double local_coordinate);
+
+		// We want to cache the downwash at each point to avoid multiple evaluations.
+		// Cache is cleared when the particles move. We can add and remove the effect
+		// of individual particles as here.
 		std::unordered_map<double, double> m_downwash_cache;
 		void add_last_shed_te_vortex_to_downwash_cache();
 		void add_last_shed_le_vortex_to_downwash_cache();

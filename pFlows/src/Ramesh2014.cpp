@@ -567,15 +567,15 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_with_zero_vorticity()
 void mFlow::Ramesh2014::compute_fourier_terms()
 {	// Eq.2.3/2.4 Free stream velocity bit correctness?.
 	assert(number_of_fourier_terms > 2);
-	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
-	quad.linear_remap(0, HBTK::Constants::pi());
+	// HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
+	// quad.linear_remap(0, HBTK::Constants::pi());
 	for (int i = 0; i < number_of_fourier_terms; i++) {
 		auto integrand = [&](double theta) {
 			double foil_pos = - cos(theta);
 			return cos(i * theta) * induced_velocity_normal_to_foil_surface(foil_pos)
 				/ free_stream_velocity.magnitude(); 
 		};
-		m_fourier_terms[i] = HBTK::adaptive_simpsons_integrate(integrand, 1e-5, 0.0, HBTK::Constants::pi()) * 2. / HBTK::Constants::pi();
+		m_fourier_terms[i] = HBTK::adaptive_simpsons_integrate(integrand, 1e-10, 0.0, HBTK::Constants::pi()) * 2. / HBTK::Constants::pi();
 	}
 	m_fourier_terms[0] *= -0.5;
 	if (!HBTK::check_finite(m_fourier_terms)) {
