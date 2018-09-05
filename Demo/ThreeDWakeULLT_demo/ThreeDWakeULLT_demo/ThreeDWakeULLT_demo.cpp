@@ -112,14 +112,14 @@ int main(int argc, char* argv[]) {
 				table_dw[ic + 2].push_back(sim.inner_solutions[ic].external_purturbation(HBTK::CartesianPoint2D({ 0,0 }), sim.inner_solutions[ic].time).y());
 			}
 			if (i%write_vtk_every == 0) {
-				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtu").c_str()));
+				std::ofstream wake_ostream((std::string("output/wake_") + std::to_string(i) + ".vtu").c_str());
+				sim.wake_to_vtk(wake_ostream);
 				if (write_inner_solutions) {
 					for (int j = 0; j < (int)sim.inner_solutions.size(); j++) {
 						HBTK::CartesianPlane plane = sim.inner_solution_planes[j];
 						plane.origin() = plane.origin() - HBTK::CartesianVector3D({ wing.semichord(plane.origin().y()), 0, 0 });
-						sim.inner_solutions[j].m_te_vortex_particles.save_to_vtk(
-							std::ofstream(("output/in_vort" + std::to_string(j) + "_" + std::to_string(i) + ".vtu").c_str()),
-							plane);
+						std::ofstream in_vort_ostream(("output/in_vort" + std::to_string(j) + "_" + std::to_string(i) + ".vtu").c_str());
+						sim.inner_solutions[j].m_te_vortex_particles.save_to_vtk(in_vort_ostream, plane);
 					}
 				}
 			}
@@ -136,9 +136,12 @@ int main(int argc, char* argv[]) {
 	HBTK::CsvWriter csv_writer;
 	csv_writer.precision = 4;
 	csv_writer.neat_columns = true;
-	csv_writer.write(std::ofstream("bound_vorticities.csv"), table_bv);
-	csv_writer.write(std::ofstream("downwash.csv"), table_dw);
-	csv_writer.write(std::ofstream("inner.csv"), table_inner);
+	std::ofstream bv_stream("bound_vorticities.csv");
+	std::ofstream dw_stream("downwash.csv");
+	std::ofstream in_stream("inner.csv");
+	csv_writer.write(bv_stream, table_bv);
+	csv_writer.write(dw_stream, table_dw);
+	csv_writer.write(in_stream, table_inner);
 
 	return 0;
 }

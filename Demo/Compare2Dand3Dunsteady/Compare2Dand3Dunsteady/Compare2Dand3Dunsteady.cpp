@@ -158,7 +158,8 @@ int main()
 		}
 
 		HBTK::CsvWriter writer;
-		writer.write(std::ofstream(output_path), table);
+		std::ofstream output_stream(output_path);
+		writer.write(output_stream, table);
 	}
 	
 
