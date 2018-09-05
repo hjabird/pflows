@@ -1,5 +1,7 @@
 // Demo for ThreeDWakeULLT
 
+
+
 #include <iostream>
 #include <omp.h>
 
@@ -29,8 +31,8 @@ int main(int argc, char* argv[]) {
 	std::cout << "Exe path: " << HBTK::Paths::executable_path() << "\n";
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
-	double aspect_ratio = 10000;
-	mFlow::WingGenerators::rectangular(wing, 0.3048, aspect_ratio);
+	double aspect_ratio = 2.5; //10000
+	mFlow::WingGenerators::rectangular(wing, 0.3, 3);
 
 	mFlow::ThreeDWakeULLT sim;
 	sim.wing_projection = wing;
@@ -38,7 +40,7 @@ int main(int argc, char* argv[]) {
 	sim.vortex_ring_warping_correction = false;
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
-	int write_vtk_every = 10;
+	int write_vtk_every = 500;
 	bool write_inner_solutions = true;
 
 	HBTK::AerofoilGeometry aerofoil;// = HBTK::AerofoilGenerators::sd7003();
@@ -48,16 +50,16 @@ int main(int argc, char* argv[]) {
 	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
 	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
 	inner_sol.pitch_location = 1.; 
-	inner_sol.delta_t = 0.001146; // dt* = 0.015
-	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
-	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
-		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 10, 0.0764, inner_sol.free_stream_velocity.magnitude());
+	inner_sol.delta_t = 0.00375; // dt* = 0.015
+	inner_sol.free_stream_velocity.as_array() = { 0.4, 0.0 };
 //	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
-//		= std::make_unique<mFlow::Harmonic>(10.3, 2.*0.0762, 0.0);
+//		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 10, 0.0764, inner_sol.free_stream_velocity.magnitude());
+	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
+		= std::make_unique<mFlow::Harmonic>(8.0, 0.0025, 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile_variable
 		= std::make_unique<mFlow::Harmonic>(10.3, HBTK::Constants::degrees_to_radians(0.), 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_const
-		= std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(1.)); //0.06981317);
+		= std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(4.)); //0.06981317);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile
 		= std::make_unique<mFlow::CanonicalFunctionSum>(std::move(aoa_const), std::move(aoa_profile_variable));
 	inner_sol.foil_AoA = [&](double t)->double { return aoa_profile->f(t);  };
@@ -79,15 +81,18 @@ int main(int argc, char* argv[]) {
 		sim.inner_solutions.emplace_back(inner_sol_y);
 	}
 
-	HBTK::DoubleTable table_bv, table_dw, table_inner;
+	HBTK::DoubleTable table_bv, table_dwy, table_dwx, table_inner;
 	table_bv.add_column("Time");
 	table_bv.add_column("Step");
 	table_bv.add_column("Cl");
-	table_dw.add_column("Time");
-	table_dw.add_column("Step");
+	table_dwy.add_column("Time");
+	table_dwy.add_column("Step");
+	table_dwx.add_column("Time");
+	table_inner.add_column("Time");
 	for (int i = 0; i < (int)sim.inner_solutions.size(); i++) {
 		table_bv.add_column("BV-" + std::to_string(i));
-		table_dw.add_column("DW-" + std::to_string(i));
+		table_dwy.add_column("DWY-" + std::to_string(i));
+		table_dwx.add_column("DWX-" + std::to_string(i));
 		table_inner.add_column("TE_vort-" + std::to_string(i));
 	}
 	for (int i = 0; i < (int)sim.inner_solutions.size(); i++) {
@@ -95,21 +100,24 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 1300;
+	int n_steps = 4001;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 			sim.advance_one_step();
+			table_inner[0].push_back(i * sim.inner_solutions[0].delta_t);
 			table_bv[0].push_back(i * sim.inner_solutions[0].delta_t);
 			table_bv[1].push_back(i);
 			table_bv[2].push_back(sim.compute_lift_coefficient());
-			table_dw[0].push_back(i * sim.inner_solutions[0].delta_t);
-			table_dw[1].push_back(i);
+			table_dwy[0].push_back(i * sim.inner_solutions[0].delta_t);
+			table_dwy[1].push_back(i);
+			table_dwx[0].push_back(i * sim.inner_solutions[0].delta_t);
 			for (int ic = 0; ic < (int)sim.inner_solutions.size(); ic++) {
 				table_bv[ic + 3].push_back(sim.inner_solutions[ic].bound_vorticity());
-				table_inner[ic].push_back(sim.inner_solutions[ic].m_te_vortex_particles.vorticity_sum());
-				table_inner[ic + (int)sim.inner_solutions.size()].push_back(sim.inner_solutions[ic].m_le_vortex_particles.vorticity_sum());
-				table_dw[ic + 2].push_back(sim.inner_solutions[ic].external_purturbation(HBTK::CartesianPoint2D({ 0,0 }), sim.inner_solutions[ic].time).y());
+				table_inner[ic + 1].push_back(sim.inner_solutions[ic].m_te_vortex_particles.vorticity_sum());
+				table_inner[ic + 1 + (int)sim.inner_solutions.size()].push_back(sim.inner_solutions[ic].m_le_vortex_particles.vorticity_sum());
+				table_dwy[ic + 2].push_back(sim.inner_solutions[ic].external_purturbation(HBTK::CartesianPoint2D({ 0,0 }), sim.inner_solutions[ic].time).y());
+				table_dwx[ic + 1].push_back(sim.inner_solutions[ic].external_purturbation(HBTK::CartesianPoint2D({ 0,0 }), sim.inner_solutions[ic].time).x());
 			}
 			if (i%write_vtk_every == 0) {
 				sim.wake_to_vtk(std::ofstream((std::string("output/wake_") + std::to_string(i) + ".vtu").c_str()));
@@ -137,7 +145,8 @@ int main(int argc, char* argv[]) {
 	csv_writer.precision = 4;
 	csv_writer.neat_columns = true;
 	csv_writer.write(std::ofstream("bound_vorticities.csv"), table_bv);
-	csv_writer.write(std::ofstream("downwash.csv"), table_dw);
+	csv_writer.write(std::ofstream("downwash.csv"), table_dwy);
+	csv_writer.write(std::ofstream("forwash.csv"), table_dwx);
 	csv_writer.write(std::ofstream("inner.csv"), table_inner);
 
 	return 0;

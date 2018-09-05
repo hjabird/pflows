@@ -376,21 +376,10 @@ void mFlow::Ramesh2014::add_last_shed_te_vortex_to_downwash_cache()
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel 
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
-		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()	
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()	
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good		
+		p_ind_vel.rotate(alpha);
+		x.second += local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
@@ -407,21 +396,10 @@ void mFlow::Ramesh2014::add_last_shed_le_vortex_to_downwash_cache()
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
 		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good
+		x.second += local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
@@ -440,21 +418,10 @@ void mFlow::Ramesh2014::remove_last_shed_te_vortex_from_downwash_cache()
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
 		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good
+		x.second -= local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
