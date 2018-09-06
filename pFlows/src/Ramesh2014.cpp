@@ -155,6 +155,7 @@ void mFlow::Ramesh2014::calculate_velocities()
 		double vc_size = vortex_core_size();
 		for (int i = 0; i < number_of_te_particles(); i++) {
 			HBTK::CartesianPoint2D ith_particle_pos = m_te_vortex_particles[i].position;
+#pragma omp parallel for
 			for (int j = 0; j < i; j++) {
 				HBTK::CartesianVector2D vel;	// Cartesian velocity
 				assert(m_te_vortex_particles[j].position != m_te_vortex_particles[i].position);
@@ -301,20 +302,29 @@ double mFlow::Ramesh2014::set_total_shed_vorticity_to_wake_vorticity()
 HBTK::CartesianVector2D mFlow::Ramesh2014::get_particle_induced_velocity(
 	HBTK::CartesianPoint2D mes_location)
 {	// checked.
-	HBTK::CartesianVector2D induced_vel({ 0, 0 });
+	// We want to use reductions which for OpenMP 2.0 means we can't uses classes. Sad.
+	double ind_vel_x = 0;
+	double ind_vel_y = 0;
 	double vc_size = vortex_core_size();
+#pragma omp parallel for reduction(+ : ind_vel_x), reduction(+ : ind_vel_y)
 	for (int i = 0; i < m_te_vortex_particles.size(); i++) {
 		HBTK::CartesianVector2D particle_induced_vel = unity_vortex_blob_induced_vel(
 			mes_location,
 			m_te_vortex_particles[i].position, vc_size);
-		induced_vel += particle_induced_vel * m_te_vortex_particles[i].vorticity;
+		HBTK::CartesianVector2D iv = particle_induced_vel * m_te_vortex_particles[i].vorticity;
+		ind_vel_x += iv.x();
+		ind_vel_y += iv.y();
 	}
+#pragma omp parallel for reduction(+ : ind_vel_x), reduction(+ : ind_vel_y)
 	for (int i = 0; i < m_le_vortex_particles.size(); i++) {
 		HBTK::CartesianVector2D particle_induced_vel = unity_vortex_blob_induced_vel(
 			mes_location,
 			m_le_vortex_particles[i].position, vc_size);
-		induced_vel += particle_induced_vel * m_le_vortex_particles[i].vorticity;
+		HBTK::CartesianVector2D iv = particle_induced_vel * m_le_vortex_particles[i].vorticity;
+		ind_vel_x += iv.x();
+		ind_vel_y += iv.y();
 	}
+	HBTK::CartesianVector2D induced_vel({ ind_vel_x, ind_vel_y });
 	if (!HBTK::check_finite(induced_vel)) {
 		throw std::runtime_error("Trying to evaluate infinite velocity in "
 			" flow field. " __FILE__ ": " + std::to_string(__LINE__));
@@ -366,21 +376,10 @@ void mFlow::Ramesh2014::add_last_shed_te_vortex_to_downwash_cache()
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel 
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
-		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()	
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()	
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good		
+		p_ind_vel.rotate(alpha);
+		x.second += local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
@@ -397,21 +396,10 @@ void mFlow::Ramesh2014::add_last_shed_le_vortex_to_downwash_cache()
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
 		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good
+		x.second += local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
@@ -423,26 +411,17 @@ void mFlow::Ramesh2014::remove_last_shed_te_vortex_from_downwash_cache()
 {
 	auto & particle = m_te_vortex_particles.most_recently_added();
 	for (auto & x : m_downwash_cache) {
+		// first is the key - the location at which the downwash
+		// function is evaluated on the foil.
 		assert(x.first <= 1);
 		assert(x.first >= -1);
 		HBTK::CartesianPoint2D foil_coord = foil_coordinate(x.first);
 		HBTK::CartesianVector2D p_ind_vel
 			= unity_vortex_blob_induced_vel(foil_coord, particle.position, vortex_core_size());
-		HBTK::CartesianVector2D extern_vel = free_stream_velocity + external_purturbation(foil_coord, time);
 		double alpha = foil_AoA(time);
-		extern_vel.rotate(alpha);
-		double alpha_dot = foil_dAoAdt(time);
-		double h_dot = foil_dZdt(time);
 		double local_camber_slope = camber_slope(x.first);
 		p_ind_vel.rotate(alpha);						// Good
-		x.second += local_camber_slope *
-			(extern_vel.x()
-				+ h_dot * sin(alpha)					// Good
-				+ p_ind_vel.x())						// Good
-			- extern_vel.y()
-			- alpha_dot * semichord * (x.first - pitch_location)	// Good
-			+ h_dot * cos(alpha)						// Good
-			- p_ind_vel.y();							// Good
+		x.second -= local_camber_slope * p_ind_vel.x() - p_ind_vel.y();
 		if (!HBTK::check_finite(x.second)) {
 			throw std::runtime_error("Corrected downwash such that it is "
 				" now infinite. Error! " __FILE__ ": " + std::to_string(__LINE__));
@@ -515,13 +494,13 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vo
 		m_wake_vorticity -= m_te_vortex_particles.most_recently_added().vorticity;
 		shed_new_leading_edge_particle_with_zero_vorticity();
 		double I_1, I_2, I_3, J_1, J_2, J_3;
-		I_1 = known_wake_kelvin_condition_effect_term(); 
+		I_1 = known_wake_kelvin_condition_effect_term();
 		I_2 = last_tev_kelvin_condition_effect_term();	
 		I_3 = new_lev_kelvin_condition_effect_term();
 		J_1 = known_wake_A_0_effect_term(); 
 		J_2 = last_tev_A_0_effect_term(); 
 		J_3 = new_lev_A_0_effect_term(); 
-		double det = J_3 * (I_2 + 1) - J_2 * (I_3 + 1);
+		double det = J_3 * (I_2 + 1.) - J_2 * (I_3 + 1.);
 		m_te_vortex_particles.most_recently_added().vorticity =
 			(1. / det) * (-J_3 * (I_1 + total_shed_vorticity())
 				+ (I_3 + 1) * (J_1 - critical_leading_edge_suction));
