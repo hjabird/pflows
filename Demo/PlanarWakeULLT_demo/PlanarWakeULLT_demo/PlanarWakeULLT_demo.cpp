@@ -29,8 +29,8 @@ int main(int argc, char* argv[]) {
 	std::cout << "Exe path: " << HBTK::Paths::executable_path() << "\n";
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
-	double aspect_ratio = 1;
-	mFlow::WingGenerators::rectangular(wing, 0.3048 /4, aspect_ratio);
+	double aspect_ratio = 4;
+	mFlow::WingGenerators::rectangular(wing, 0.3048, aspect_ratio);
 
 	mFlow::PlanarWakeULLT sim;
 	sim.wing_projection = wing;
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
 	sim.vortex_ring_warping_correction = false;
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
-	int write_vtk_every = 100;
+	int write_vtk_every = 1;
 	bool write_inner_solutions = true;
 
 	HBTK::AerofoilGeometry aerofoil;// = HBTK::AerofoilGenerators::sd7003();
@@ -47,15 +47,15 @@ int main(int argc, char* argv[]) {
 	mFlow::Ramesh2014 inner_sol;
 	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
 	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
-	inner_sol.pitch_location = 0.0; 
-	inner_sol.delta_t = 0.0001905;
+	inner_sol.pitch_location = -1; 
+	inner_sol.delta_t = 0.0005;
 	inner_sol.free_stream_velocity.as_array() = { 1., 0.0 };
 //	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
 //		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 0.0764, 0.0764, inner_sol.free_stream_velocity.magnitude());
 	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
 		= std::make_unique<mFlow::Harmonic>(10.3, 0.0*0.0762, 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile_variable
-		= std::make_unique<mFlow::Harmonic>(10.3, 0.0, 0.0);
+		= std::make_unique<mFlow::Harmonic>(103, HBTK::Constants::degrees_to_radians(4.), 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_const
 		= std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(0.01)); //0.06981317);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	sim.initialise();
-	int n_steps = 2001;
+	int n_steps = 41;
 	try {
 		for (int i = 0; i < n_steps; i++) {
 			std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";

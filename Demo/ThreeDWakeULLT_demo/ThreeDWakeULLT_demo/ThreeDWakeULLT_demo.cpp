@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 //	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
 //		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 10, 0.0764, inner_sol.free_stream_velocity.magnitude());
 	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
-		= std::make_unique<mFlow::Harmonic>(8.0, 0.0025, 0.0);
+		= std::make_unique<mFlow::Harmonic>(8.0, 0.025, 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile_variable
 		= std::make_unique<mFlow::Harmonic>(10.3, HBTK::Constants::degrees_to_radians(0.), 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_const

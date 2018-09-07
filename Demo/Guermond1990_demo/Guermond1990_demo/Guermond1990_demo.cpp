@@ -1,7 +1,10 @@
 
 #include <iostream>
+#include <vector>
 
 #include <HBTK/Constants.h>
+#include <HBTK/Generators.h>
+#include <HBTK/GnuPlot.h>
 #include <HBTK/Paths.h>
 
 #include "Guermond1990.h"
@@ -13,7 +16,12 @@ int main(int argc, char* argv[]) {
 	std::cout << "Working path: " << HBTK::Paths::current_working_directory() << "\n";
 
 	mFlow::WingProjectionGeometry wing;
-	mFlow::WingGenerators::rectangular(wing, 1, 4);
+	mFlow::WingGenerators::elliptic(wing, 1, 1000);
+	//wing.m_TE_expr = [=](double x)->double { return wing.m_TE_expr(x) + 0.2 * x * x; };
+	//wing.m_LE_expr = [=](double x)->double { return wing.m_LE_expr(x) + 0.2 * x * x; };
+
+	HBTK::GnuPlot plt;
+	wing.add_to_plot(plt);
 
 	mFlow::Guermond1990 sim;
 	sim.wing = wing;
@@ -23,6 +31,14 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Circulation at middle of wing is " << sim.Gamma_0(0.0) << "\n";
 	std::cout << "Lift coeff is " << sim.lift_coefficient() << "\n";
+
+	std::vector<double> y_values = HBTK::linspace(0, 0.99, 50);
+	std::vector<double> circ(y_values.size());
+	for (int i = 0; i < (int)y_values.size(); i++) {
+		circ[i] = sim.Gamma(y_values[i]);
+	}
+	plt.hold_on();
+	plt.plot(y_values, circ);
 
 	return 0;
 }

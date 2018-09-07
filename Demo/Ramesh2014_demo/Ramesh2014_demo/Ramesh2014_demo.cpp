@@ -28,18 +28,22 @@ int main()
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::Ramesh2014 sim;
 
-	HBTK::AerofoilGeometry foil; // HBTK::AerofoilGenerators::sd7003();
+	HBTK::AerofoilGeometry foil;// = HBTK::AerofoilGenerators::sd7003();
 	HBTK::CubicSpline1D camber = foil.get_camber_spline();
 
-	sim.semichord = 0.5;
+	sim.semichord = 0.05;
 	sim.pitch_location = -1;
-	sim.delta_t = 0.05;
-	sim.free_stream_velocity = HBTK::CartesianVector2D({ 1, 0 });
+	sim.delta_t = 2.5*0.00375/2;
+	sim.free_stream_velocity = HBTK::CartesianVector2D({ 0.4, 0 });
+	sim.external_purturbation = [](HBTK::CartesianPoint2D p, double t) { 
+		//return HBTK::CartesianVector2D({0, sin((p.x()*4 - 2*t)*HBTK::Constants::pi())}); 
+		return HBTK::CartesianVector2D({ 0, 0 });
+	};
 	std::unique_ptr<mFlow::CanonicalFunction> ramp_AoA, ramp_Z, mean_AoA, sum;
-	ramp_AoA = std::make_unique<mFlow::Harmonic>(6 * 0.393, -4*0.09477, 0);
+	ramp_AoA = std::make_unique<mFlow::Harmonic>(6 * 0.393, -0*0.09477, 0);
 	//ramp_AoA = std::make_unique<mFlow::EldredgeSmoothRamp>(1, 3, 4, 6, 11, 0.7854, 1, sim.free_stream_velocity.magnitude());
-	mean_AoA = std::make_unique<mFlow::ConstantValue>(0.0);
-	ramp_Z = std::make_unique<mFlow::Harmonic>(2 * 0.393, 0.0, 0);
+	mean_AoA = std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(4.));
+	ramp_Z = std::make_unique<mFlow::Harmonic>(3.2, 0.025, 0);
 	sum = std::make_unique<mFlow::CanonicalFunctionSum>(std::move(ramp_AoA), std::move(mean_AoA));
 	sim.foil_AoA = [&](double t) { return sum->f(t); };// 0.5 * sin(0.1 * 2 * 3.141 * t); };
 	sim.foil_dAoAdt = [&](double t) { return sum->dfdx(t); };// 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
@@ -48,10 +52,10 @@ int main()
 	sim.camber_line = [&](double x) { return camber((x + 1) / 2); };
 	sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 
-	sim.number_of_fourier_terms = 8;
+	sim.number_of_fourier_terms = 16;
 	sim.wake_self_convection = true;
 	sim.lev_shedding = false;
-	sim.critical_leading_edge_suction = 0.18;
+	sim.critical_leading_edge_suction = 0.05;
 	try {
 		sim.initialise();
 	}
@@ -74,7 +78,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	const int n_steps = 301;
+	const int n_steps = 4001;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
@@ -94,35 +98,37 @@ int main()
 		step_data[9].emplace_back(fourier_coeff[1]);
 		step_data[10].emplace_back(fourier_coeff[2]);
 
-		std::string te_particle_name = "output/te_particle_step_" + std::to_string(i) + ".vtu";
-		std::ofstream te_particles_file(te_particle_name, std::ios::binary);
-		std::string le_particle_name = "output/le_particle_step_" + std::to_string(i) + ".vtu";
-		std::ofstream le_particles_file(le_particle_name, std::ios::binary);
-		std::string foil_name = "output/foil_step_" + std::to_string(i) + ".vtu";
-		std::ofstream foil_file(foil_name, std::ios::binary);
-		HBTK::Vtk::VtkUnstructuredDataset data_tev, data_foil;
 		// Particles
-		int npts = sim.number_of_te_particles();
-		HBTK::CartesianPlane plane(
-			HBTK::CartesianPoint3D({ 0,0,0 }),
-			HBTK::CartesianPoint3D({ 1,0,0 }),
-			HBTK::CartesianPoint3D({ 0,0,1 })
-		);
-		sim.m_te_vortex_particles.save_to_vtk(te_particles_file, plane);
-		sim.m_le_vortex_particles.save_to_vtk(le_particles_file, plane);
-		auto positions = HBTK::linspace(-1, 1, 30);
-		for (int i = 0; i < 30; i++) {
-			HBTK::CartesianPoint2D pnt = sim.foil_coordinate(positions[i]);
-			data_foil.mesh.points.push_back(plane(pnt));
+		if (i % 30 == 0) {
+			std::string te_particle_name = "output/te_particle_step_" + std::to_string(i) + ".vtu";
+			std::ofstream te_particles_file(te_particle_name, std::ios::binary);
+			std::string le_particle_name = "output/le_particle_step_" + std::to_string(i) + ".vtu";
+			std::ofstream le_particles_file(le_particle_name, std::ios::binary);
+			std::string foil_name = "output/foil_step_" + std::to_string(i) + ".vtu";
+			std::ofstream foil_file(foil_name, std::ios::binary);
+			HBTK::Vtk::VtkUnstructuredDataset data_tev, data_foil;
+			int npts = sim.number_of_te_particles();
+			HBTK::CartesianPlane plane(
+				HBTK::CartesianPoint3D({ 0,0,0 }),
+				HBTK::CartesianPoint3D({ 1,0,0 }),
+				HBTK::CartesianPoint3D({ 0,0,1 })
+			);
+			sim.m_te_vortex_particles.save_to_vtk(te_particles_file, plane);
+			sim.m_le_vortex_particles.save_to_vtk(le_particles_file, plane);
+			auto positions = HBTK::linspace(-1, 1, 30);
+			for (int i = 0; i < 30; i++) {
+				HBTK::CartesianPoint2D pnt = sim.foil_coordinate(positions[i]);
+				data_foil.mesh.points.push_back(plane(pnt));
+			}
+			for (int i = 0; i < (int)data_foil.mesh.points.size() - 1; i++) {
+				data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
+			}
+			HBTK::Vtk::VtkWriter writer;
+			writer.appended = false;
+			writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
+			writer.write_piece(foil_file, data_foil);
+			writer.close_file(foil_file);
 		}
-		for (int i = 0; i < (int)data_foil.mesh.points.size() - 1; i++) {
-			data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
-		}
-		HBTK::Vtk::VtkWriter writer;
-		writer.appended = false;
-		writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
-		writer.write_piece(foil_file, data_foil);
-		writer.close_file(foil_file);
 	}
 	HBTK::CsvWriter csv_writer;
 	csv_writer.precision = 6;
