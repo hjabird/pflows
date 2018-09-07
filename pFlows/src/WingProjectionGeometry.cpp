@@ -28,6 +28,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 #include <HBTK/Integrators.h>
 #include <HBTK/NumericalDifferentiation.h>
 #include <HBTK/Checks.h>
+#include <HBTK/Tolerances.h>
 
 namespace mFlow {
 	WingProjectionGeometry::WingProjectionGeometry()
@@ -163,7 +164,7 @@ namespace mFlow {
 		assert(m_LE_expr);
 		assert(m_TE_expr);
 		auto my_function = [&](const double y_loc) {
-			auto c = std::abs(trailing_edge_X(y_loc) - leading_edge_X(y_loc));
+			double c = abs(trailing_edge_X(y_loc) - leading_edge_X(y_loc));
 			return c;
 		};
 		m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
