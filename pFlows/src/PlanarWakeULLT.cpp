@@ -331,7 +331,7 @@ void mFlow::PlanarWakeULLT::update_inner_solution_vorticities_for_vortex_filamen
 			}
 			else {
 				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-					m_original_ring_strengths[i][ix] * abs(tangent.y()) / tangent.magnitude();
+					m_original_ring_strengths[i][ix] * std::abs(tangent.y()) / tangent.magnitude();
 			}
 		}
 	}

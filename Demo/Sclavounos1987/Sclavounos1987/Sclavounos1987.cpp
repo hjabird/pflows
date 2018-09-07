@@ -49,7 +49,7 @@ void run_elliptic_experiment() {
 		std::complex<double> C_L = this_analysis.compute_lift_coeff_j3(this_analysis.elliptic_added_mass_coefficient());
 		cl_real[idx] =	C_L.real();
 		cl_imag[idx] =	C_L.imag();
-		cl_abs[idx] =	abs(C_L);
+		cl_abs[idx] =	std::abs(C_L);
 		phase_res[idx] = atan2(C_L.imag(), C_L.real()) / HBTK::Constants::pi() * 180;
 		fq_term[idx] =	tmp_omega * analysis.wing.semispan() / analysis.U;
 	}
@@ -112,7 +112,7 @@ void run_rectangular_experiment() {
 			this_analysis.compute_lift_coeff_j3(this_analysis.rectangular_added_mass_coefficient());
 		cl_real[idx] = C_L.real();
 		cl_imag[idx] = C_L.imag();
-		cl_abs[idx] = abs(C_L);
+		cl_abs[idx] = std::abs(C_L);
 		phase_res[idx] = atan2(C_L.imag(), C_L.real()) / HBTK::Constants::pi() * 180;
 		fq_term[idx] = tmp_omega * analysis.wing.semispan() / analysis.U;
 	}
@@ -175,7 +175,7 @@ void run_elliptic_pitch_experiment() {
 			this_analysis.compute_lift_coeff_j5();
 		cl_real[idx] = C_L.real();
 		cl_imag[idx] = C_L.imag();
-		cl_abs[idx] = abs(C_L);
+		cl_abs[idx] = std::abs(C_L);
 		phase_res[idx] = atan2(C_L.imag(), C_L.real()) / HBTK::Constants::pi() * 180;
 		fq_term[idx] = tmp_omega * analysis.wing.semispan() / analysis.U;
 	}
@@ -237,7 +237,7 @@ void run_rectangluar_pitch_experiment() {
 			this_analysis.compute_lift_coeff_j5();
 		cl_real[idx] = C_L.real();
 		cl_imag[idx] = C_L.imag();
-		cl_abs[idx] = abs(C_L);
+		cl_abs[idx] = std::abs(C_L);
 		phase_res[idx] = atan2(C_L.imag(), C_L.real()) / HBTK::Constants::pi() * 180;
 		fq_term[idx] = tmp_omega * analysis.wing.semispan() / analysis.U;
 	}
@@ -300,9 +300,9 @@ void run_circulatory_lift_distribution_demo_elliptic() {
 
 	for (int i = 0; i < number_of_points; i++) {
 		double y = y_pos[i];
-		cl[i] = abs(get_Cl2D(y, analysis));
-		cl_HFC[i] = abs(get_Cl2D(y, analysis_HFC));
-		cl_HFS[i] = abs(get_Cl2D(y, analysis_HFS));
+		cl[i] = std::abs(get_Cl2D(y, analysis));
+		cl_HFC[i] = std::abs(get_Cl2D(y, analysis_HFC));
+		cl_HFS[i] = std::abs(get_Cl2D(y, analysis_HFS));
 	}
 
 	HBTK::GnuPlot fig_lift;
@@ -357,9 +357,9 @@ void run_circulatory_lift_distribution_demo_rectangular() {
 
 	for (int i = 0; i < number_of_points; i++) {
 		double y = y_pos[i];
-		cl[i] = abs(get_Cl2D(y, analysis));
-		cl_HFC[i] = abs(get_Cl2D(y, analysis_HFC));
-		cl_HFS[i] = abs(get_Cl2D(y, analysis_HFS));
+		cl[i] = std::abs(get_Cl2D(y, analysis));
+		cl_HFC[i] = std::abs(get_Cl2D(y, analysis_HFC));
+		cl_HFS[i] = std::abs(get_Cl2D(y, analysis_HFS));
 	}
 
 	HBTK::GnuPlot fig_lift;
@@ -417,10 +417,10 @@ void run_aspect_ratio_demo_rectangular() {
 
 	for (int i = 0; i < number_of_points; i++) {
 		double y = y_pos[i];
-		ar_inf[i] = abs(get_Cl2D(y * 1000, analysis_ar_inf));
-		ar_4[i] = abs(get_Cl2D(y * 4, analysis_ar_4));
-		ar_2[i] = abs(get_Cl2D(y * 2, analysis_ar_2));
-		ar_1[i] = abs(get_Cl2D(y * 1, analysis_ar_1));
+		ar_inf[i] = std::abs(get_Cl2D(y * 1000, analysis_ar_inf));
+		ar_4[i] = std::abs(get_Cl2D(y * 4, analysis_ar_4));
+		ar_2[i] = std::abs(get_Cl2D(y * 2, analysis_ar_2));
+		ar_1[i] = std::abs(get_Cl2D(y * 1, analysis_ar_1));
 	}
 
 	HBTK::GnuPlot fig_lift;
@@ -478,10 +478,10 @@ void run_aspect_ratio_demo_elliptic() {
 
 	for (int i = 0; i < number_of_points; i++) {
 		double y = y_pos[i];
-		ar_inf[i] = abs(get_Cl2D(y * 1000, analysis_ar_inf));
-		ar_4[i] = abs(get_Cl2D(y * 4, analysis_ar_4));
-		ar_2[i] = abs(get_Cl2D(y * 2, analysis_ar_2));
-		ar_1[i] = abs(get_Cl2D(y * 1, analysis_ar_1));
+		ar_inf[i] = std::abs(get_Cl2D(y * 1000, analysis_ar_inf));
+		ar_4[i] = std::abs(get_Cl2D(y * 4, analysis_ar_4));
+		ar_2[i] = std::abs(get_Cl2D(y * 2, analysis_ar_2));
+		ar_1[i] = std::abs(get_Cl2D(y * 1, analysis_ar_1));
 	}
 
 	HBTK::GnuPlot fig_lift;

@@ -27,8 +27,8 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 void mFlow::WingGenerators::elliptic(WingProjectionGeometry & wing_obj, double span, double aspect_ratio)
 {
-	span = abs(span);
-	aspect_ratio = abs(aspect_ratio);
+	span = std::abs(span);
+	aspect_ratio = std::abs(aspect_ratio);
 	auto max_chord = 4 * span / (aspect_ratio * HBTK::Constants::pi());
 	auto leading_edge = [=](double x_position)->double {
 		double p =  -(max_chord / span)*sqrt(pow(span / 2, 2) - pow(x_position, 2));
@@ -50,8 +50,8 @@ void mFlow::WingGenerators::elliptic(WingProjectionGeometry & wing_obj, double s
 
 void mFlow::WingGenerators::rectangular(WingProjectionGeometry & wing_obj, double span, double aspect_ratio)
 {
-	span = abs(span);
-	aspect_ratio = abs(aspect_ratio);
+	span = std::abs(span);
+	aspect_ratio = std::abs(aspect_ratio);
 	auto max_chord = span / aspect_ratio;
 	auto leading_edge = [=](double x_position)->double {
 		return -max_chord / 2;

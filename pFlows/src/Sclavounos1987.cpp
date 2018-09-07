@@ -146,7 +146,7 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::d_3(double y)
 	{
-		assert(y <= abs(wing.semispan()));
+		assert(y <= std::abs(wing.semispan()));
 		auto l = wing.semichord(y);		// semichord
 		auto v = omega / U;				// Normalised frequency 
 
@@ -192,7 +192,7 @@ namespace mFlow {
 
 	double Sclavounos1987::K_term1_numerator(double y)
 	{
-		return 0.5 * exp(- (omega / U) * abs(y));
+		return 0.5 * exp(- (omega / U) * std::abs(y));
 	}
 
 
@@ -204,7 +204,7 @@ namespace mFlow {
 		auto coeff = 0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
 		auto E_1_term = -HBTK::Constants::i() * nu 
-			* Common::exponential_int_E1(nu * abs(y));
+			* Common::exponential_int_E1(nu * std::abs(y));
 
 		assert(HBTK::check_finite(E_1_term));
 		return coeff * -1. * E_1_term;
@@ -218,7 +218,7 @@ namespace mFlow {
 
 		auto coeff = -0.5 * (y >= 0 ? 1. : -1.);
 		auto nu = omega / U;
-		auto P_term = nu * P(nu * abs(y));
+		auto P_term = nu * P(nu * std::abs(y));
 		
 		assert(HBTK::check_finite(P_term));
 		return coeff * P_term;
@@ -227,7 +227,7 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K(double y_position, int k)
 	{
-		assert(abs(y_position) <= wing.semispan());
+		assert(std::abs(y_position) <= wing.semispan());
 		assert(k >= 0);
 
 		// We're evaluating int( Gamma'(eta) * K(y-eta deta)
@@ -276,7 +276,7 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::integrate_gammaprime_K_term2(double y, int k)
 	{
-		assert(abs(y) <= wing.semispan());
+		assert(std::abs(y) <= wing.semispan());
 		assert(k >= 0);
 
 		// The singularity position in terms of the angle theta.
@@ -292,7 +292,7 @@ namespace mFlow {
 		// The singular part of the integrand
 		auto singular = [&](double theta)->std::complex<double> {
 			return v * wing.semispan() * sin(theta) * (theta > theta_sing ? 1. : -1.)
-				* Common::exponential_int_E1(v * wing.semispan() * abs(cos(theta_sing) - cos(theta)));
+				* Common::exponential_int_E1(v * wing.semispan() * std::abs(cos(theta_sing) - cos(theta)));
 		};
 		// The singular part of the integrand evaluated.
 		auto singular_integral = v * wing.semispan() * (
@@ -343,7 +343,7 @@ namespace mFlow {
 
 	std::complex<double> Sclavounos1987::F(double y)
 	{
-		assert(y <= abs(wing.semispan()));
+		assert(y <= std::abs(wing.semispan()));
 		assert((j == 3) || (j == 5));
 		if (j == 3) {
 			return 1. - solution_vorticity(y) / d_3(y);
@@ -356,7 +356,7 @@ namespace mFlow {
 
 	double Sclavounos1987::dtheta_dy(double y)
 	{
-		assert( abs(y) <= wing.semispan() );
+		assert( std::abs(y) <= wing.semispan() );
 		auto result = -1. / sqrt(pow(wing.semispan(), 2) - pow(y, 2));
 		assert(HBTK::check_finite(result));
 		return result;
@@ -365,7 +365,7 @@ namespace mFlow {
 
 	double Sclavounos1987::dsintheta_dy(double y, int k)
 	{
-		assert(y <= abs(wing.semispan()));
+		assert(y <= std::abs(wing.semispan()));
 		assert(k >= 0);
 		
 		auto theta = acos(y / wing.semispan());
@@ -442,7 +442,7 @@ namespace mFlow {
 	std::complex<double> Sclavounos1987::solution_vorticity(double y)
 	{
 		assert(m_solution.size() == number_of_terms);
-		assert(y <= abs(wing.semispan()) );
+		assert(y <= std::abs(wing.semispan()) );
 
 		std::complex<double> sum(0, 0);
 		double theta;

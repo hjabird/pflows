@@ -489,7 +489,7 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vo
 	};
 	double A_0 = -0.5 * HBTK::adaptive_simpsons_integrate(integrand, 1.e-3, 0.0, HBTK::Constants::pi()) * 2 / HBTK::Constants::pi();
 
-	if (abs(A_0) > critical_leading_edge_suction) {
+	if (std::abs(A_0) > critical_leading_edge_suction) {
 		remove_last_shed_te_vortex_from_downwash_cache();
 		m_wake_vorticity -= m_te_vortex_particles.most_recently_added().vorticity;
 		shed_new_leading_edge_particle_with_zero_vorticity();
@@ -862,7 +862,7 @@ double mFlow::Ramesh2014::vortex_core_size() const
 
 HBTK::CartesianPoint2D mFlow::Ramesh2014::pivot_coordinate()
 {	// checked.
-	assert(abs(pitch_location) <= 1);
+	assert(std::abs(pitch_location) <= 1);
 	HBTK::CartesianPoint2D loc;
 	loc.x() = pitch_location * semichord;
 	loc.y() = foil_Z(time);

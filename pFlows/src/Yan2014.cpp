@@ -97,7 +97,7 @@ void mFlow::Yan2014::compute_eta_plane_velocities()
 	vrad.resize(n_particles);	// Radial velocity of particle
 	vtan.resize(n_particles);	// Tangential velocity of particle
 	for (int i = 0; i < n_particles; i++) {
-		rad[i] = abs(m_vortex_particles[i].x);
+		rad[i] = std::abs(m_vortex_particles[i].x);
 		assert(rad[i] > semichord / 2);
 		arg[i] = std::arg(m_vortex_particles[i].x);
 		vtan[i] = 0;

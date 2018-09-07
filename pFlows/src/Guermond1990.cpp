@@ -20,7 +20,7 @@ mFlow::Guermond1990::~Guermond1990()
 
 double mFlow::Guermond1990::Gamma(double local_y)
 {
-	assert(abs(local_y) <= 1.);
+	assert(std::abs(local_y) <= 1.);
 	double global_y = local_y  * wing.semispan();
 	return HBTK::Constants::pi() * wing.chord(global_y) * cos(wing.midchord_sweep_angle(global_y)) *
 		(incidence(global_y) - zero_lift_incidence(global_y) + local_downwash(local_y));
@@ -28,7 +28,7 @@ double mFlow::Guermond1990::Gamma(double local_y)
 
 double mFlow::Guermond1990::Gamma_0(double local_y)
 {
-	assert(abs(local_y) <= 1);
+	assert(std::abs(local_y) <= 1);
 	double y_global = local_y * wing.semispan();
 	double cos_lambda = cos(wing.midchord_sweep_angle(y_global));
 	double equivalent_incidence = incidence(y_global) - zero_lift_incidence(y_global);
@@ -38,7 +38,7 @@ double mFlow::Guermond1990::Gamma_0(double local_y)
 
 double mFlow::Guermond1990::local_downwash(double y)
 {
-	assert(abs(y) <= 1.0);
+	assert(std::abs(y) <= 1.0);
 	double A = wing.aspect_ratio();
 	double c = wing.chord(y * wing.semispan());
 	double K = 0.5;
@@ -62,7 +62,7 @@ double mFlow::Guermond1990::local_downwash(double y)
 
 double mFlow::Guermond1990::downwash(double y)
 {
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	double term_1 = downwash_integral1(y) / (4. * HBTK::Constants::pi());
 	double term_2 = Gamma_0(y) * downwash_integral2(y) / (4. * HBTK::Constants::pi());
 	double term_3 = HBTK::central_difference_O1A2([&](double y) {return Gamma_0(y); }, y) * downwash_integral3(y)
@@ -91,7 +91,7 @@ double mFlow::Guermond1990::moment_about_midchord_no_camber_slope(double y_globa
 double mFlow::Guermond1990::downwash_integral1(double y)
 {
 	// First term of Eq39.
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	double integral;
 
 	double gamma0y = Gamma_0(y);
@@ -110,7 +110,7 @@ double mFlow::Guermond1990::downwash_integral1(double y)
 
 double mFlow::Guermond1990::downwash_integral2(double y)
 {
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	// Eq 40 with smooth wing assumptions.
 	double term_1, term_2, term_3, term_4,
 		term_21, term_22;
@@ -128,7 +128,7 @@ double mFlow::Guermond1990::downwash_integral2(double y)
 	double static_aux_derivative = daux_downwash_function_dy(y);
 	auto integrand = [&](double psi) {
 		return aux_downwash_function(y, psi) - static_aux_term - (psi - y) * static_aux_derivative
-			/ ((psi - y) * abs(psi - y));
+			/ ((psi - y) * std::abs(psi - y));
 	};
 	term_4 = -1. * quad.integrate(integrand);
 	assert(HBTK::check_finite(term_4));
@@ -138,7 +138,7 @@ double mFlow::Guermond1990::downwash_integral2(double y)
 double mFlow::Guermond1990::downwash_integral3(double y)
 {
 	// Eq 41 with smooth wing assumptions.
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	double term_1, term_2, term_3;
 
 	term_1 = log((1. - y) / (1. + y));
@@ -148,7 +148,7 @@ double mFlow::Guermond1990::downwash_integral3(double y)
 	auto quadrature = HBTK::gauss_legendre(20);
 	double precomputed_downwash_aux_at_y = aux_downwash_function(y);
 	auto integrand = [&](double psi) {
-		return (aux_downwash_function(y, psi) - precomputed_downwash_aux_at_y) / abs(psi - y);
+		return (aux_downwash_function(y, psi) - precomputed_downwash_aux_at_y) / std::abs(psi - y);
 	};
 	term_3 = -1 * quadrature.integrate(integrand);
 
@@ -158,8 +158,8 @@ double mFlow::Guermond1990::downwash_integral3(double y)
 
 double mFlow::Guermond1990::aux_downwash_function(double y, double psi)
 {
-	assert(abs(y) <= 1.0);
-	assert(abs(psi) <= 1.0);
+	assert(std::abs(y) <= 1.0);
+	assert(std::abs(psi) <= 1.0);
 	if (psi == y) return aux_downwash_function(y);
 	double x0y = wing.midchord_X(y * wing.semispan()) / wing.semispan();
 	double x0psi = wing.midchord_X(psi * wing.semispan()) / wing.semispan();
@@ -177,13 +177,13 @@ double mFlow::Guermond1990::aux_downwash_function(double y, double psi)
 
 double mFlow::Guermond1990::aux_downwash_function(double y)
 {
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	return sin( wing.midchord_sweep_angle(y * wing.semispan()) );
 }
 
 
 double mFlow::Guermond1990::daux_downwash_function_dy(double y)
 {
-	assert(abs(y) <= 1.);
+	assert(std::abs(y) <= 1.);
 	return 1./ (2. * wing.midchord_radius_of_curvature(y* wing.semispan()));
 }

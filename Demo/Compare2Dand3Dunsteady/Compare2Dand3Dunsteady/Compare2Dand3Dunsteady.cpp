@@ -98,9 +98,9 @@ int main()
 	std::cout << "\nPeriod = " << period;
 	std::cout << "\nChord reduced freq (y=0) = " << chord_reduced_frequency;
 	std::cout << "\nSpan reduced freq = " << span_reduced_frequency;
-	std::cout << "\n\nSclavounos cl = \t" << sclavounos_cl << " -> \t" << abs(sclavounos_cl) << " at " << std::arg(sclavounos_cl);
-	std::cout << "\nqstat_cl = \t\t" << qstat_cl << " -> \t" << abs(qstat_cl) << " at " << std::arg(qstat_cl);
-	std::cout << "\ntheodorson cl = \t" << theodorsen_cl << " -> \t" << abs(theodorsen_cl) << " at " << std::arg(theodorsen_cl);
+	std::cout << "\n\nSclavounos cl = \t" << sclavounos_cl << " -> \t" << std::abs(sclavounos_cl) << " at " << std::arg(sclavounos_cl);
+	std::cout << "\nqstat_cl = \t\t" << qstat_cl << " -> \t" << std::abs(qstat_cl) << " at " << std::arg(qstat_cl);
+	std::cout << "\ntheodorson cl = \t" << theodorsen_cl << " -> \t" << std::abs(theodorsen_cl) << " at " << std::arg(theodorsen_cl);
 	std::cout << "\n\n";
 
 	HBTK::GnuPlot plot;
@@ -150,9 +150,9 @@ int main()
 					fq, wing, mFlow::rectangular_added_mass_coefficient(span, wing.chord(0)), wing.semichord(0)*pitch_location);
 				mcgowan.frequency = fq;
 				theodorsen_cl = mcgowan.theodorsen_unsteady();
-				table.column(8).push_back(abs(theodorsen_cl));
+				table.column(8).push_back(std::abs(theodorsen_cl));
 				table.column(9).push_back(std::arg(theodorsen_cl));
-				table.column(10).push_back(abs(sclavounos_cl));
+				table.column(10).push_back(std::abs(sclavounos_cl));
 				table.column(11).push_back(std::arg(sclavounos_cl));
 			}
 		}

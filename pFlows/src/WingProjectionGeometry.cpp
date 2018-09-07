@@ -95,7 +95,7 @@ namespace mFlow {
 		double dx_term = HBTK::central_difference_O1A2(fn, Y_global);
 		double ddx_term = HBTK::central_difference_O2A2(fn, Y_global);
 
-		return abs(pow(sqrt(1 + dx_term), 3) / ddx_term);
+		return std::abs(pow(sqrt(1 + dx_term), 3) / ddx_term);
 	}
 
 	const double WingProjectionGeometry::semispan()
@@ -163,7 +163,7 @@ namespace mFlow {
 		assert(m_LE_expr);
 		assert(m_TE_expr);
 		auto my_function = [&](const double y_loc) {
-			auto c = abs(trailing_edge_X(y_loc) - leading_edge_X(y_loc));
+			auto c = std::abs(trailing_edge_X(y_loc) - leading_edge_X(y_loc));
 			return c;
 		};
 		m_area = HBTK::adaptive_simpsons_integrate(my_function, 1e-9, -semispan(), semispan());
