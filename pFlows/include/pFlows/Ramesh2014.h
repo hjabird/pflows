@@ -173,8 +173,12 @@ namespace mFlow {
 		// And the terms from the step before incase we want to compute the 
 		// time derivative.
 		std::vector<double> m_previous_fourier_terms;
-		// A method to extract the time rate of change of fourier terms
-		std::vector<double> rate_of_change_of_fourier_terms();
+		// For LESP we need to save the derivatives because they're not truely 
+		// derivatives... Yes, weird, right?
+		std::vector<double> m_fourier_derivatives;
+		// A method to extract the time rate of change of fourier terms - DO
+		// NOT call willy nilly: this needs to be called before LEV shedding.
+		void calc_rate_of_change_of_fourier_terms();
 
 		// Compute the terms used for applying the Kelvin condition.
 		double known_wake_kelvin_condition_effect_term(); // I_1

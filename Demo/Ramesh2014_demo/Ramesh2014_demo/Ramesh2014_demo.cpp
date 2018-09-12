@@ -33,7 +33,7 @@ int main()
 
 	sim.semichord = 0.05;
 	sim.pitch_location = -1;
-	sim.delta_t = 2.5*0.00375/2;
+	sim.delta_t = 0.00375;
 	sim.free_stream_velocity = HBTK::CartesianVector2D({ 0.4, 0 });
 	sim.external_purturbation = [](HBTK::CartesianPoint2D p, double t) { 
 		//return HBTK::CartesianVector2D({0, sin((p.x()*4 - 2*t)*HBTK::Constants::pi())}); 
@@ -52,10 +52,10 @@ int main()
 	sim.camber_line = [&](double x) { return camber((x + 1) / 2); };
 	sim.camber_slope = [&](double x) { return camber.derivative((x + 1) / 2);  };
 
-	sim.number_of_fourier_terms = 16;
+	sim.number_of_fourier_terms = 8;
 	sim.wake_self_convection = true;
-	sim.lev_shedding = false;
-	sim.critical_leading_edge_suction = 0.05;
+	sim.lev_shedding = true;
+	sim.critical_leading_edge_suction = 0.08;
 	try {
 		sim.initialise();
 	}
@@ -78,7 +78,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	const int n_steps = 4001;
+	const int n_steps = 600;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
@@ -99,7 +99,7 @@ int main()
 		step_data[10].emplace_back(fourier_coeff[2]);
 
 		// Particles
-		if (i % 30 == 0) {
+		if (i % 100 == 0) {
 			std::string te_particle_name = "output/te_particle_step_" + std::to_string(i) + ".vtu";
 			std::ofstream te_particles_file(te_particle_name, std::ios::binary);
 			std::string le_particle_name = "output/le_particle_step_" + std::to_string(i) + ".vtu";

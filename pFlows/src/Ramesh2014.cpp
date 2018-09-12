@@ -108,14 +108,15 @@ void mFlow::Ramesh2014::initialise()
 void mFlow::Ramesh2014::advance_one_step()
 {
 	convect_particles();
+	time += delta_t;
 	m_downwash_cache.clear();
+	m_previous_fourier_terms = m_fourier_terms;
 	shed_new_trailing_edge_particle_with_zero_vorticity();
 	adjust_last_shed_vortex_particle_for_kelvin_condition();
+	calc_rate_of_change_of_fourier_terms();
 	shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
-	m_previous_fourier_terms = m_fourier_terms;
 	compute_fourier_terms();
 	calculate_velocities();
-	time += delta_t;
 	m_downwash_cache.clear();
 }
 
@@ -618,7 +619,7 @@ double mFlow::Ramesh2014::aerofoil_normal_force(double density)
 	double alpha = foil_AoA(time);
 	double alpha_dot = foil_dAoAdt(time);
 	double h_dot = foil_dZdt(time);
-	std::vector<double> fourier_derivatives = rate_of_change_of_fourier_terms();
+	std::vector<double>& fourier_derivatives = m_fourier_derivatives;
 
 	double term_1, term_2,
 		term_11, term_12, term_121, term_122,
@@ -632,7 +633,7 @@ double mFlow::Ramesh2014::aerofoil_normal_force(double density)
 		(3. / 4) * fourier_derivatives[0]
 		+ (1. / 4) * fourier_derivatives[1]
 		+ (1. / 8) * fourier_derivatives[2]);
-	term_12 = term_121 + term_122;
+	term_12 = term_122;//term_121 + 
 	term_1 = term_11 * term_12;
 	assert(HBTK::check_finite(term_1));
 
@@ -649,7 +650,7 @@ double mFlow::Ramesh2014::aerofoil_normal_force(double density)
 	term_2 += density * ssm_static * free_stream_velocity.magnitude() * 2 * semichord *
 		HBTK::Constants::pi() * (m_fourier_terms[0] + m_fourier_terms[1] / 2);
 	assert(HBTK::check_finite(term_2));
-	return term_1 + term_2;
+	return term_1;// +term_2;
 }
 
 double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
@@ -659,7 +660,7 @@ double mFlow::Ramesh2014::aerofoil_moment_about_pitch_location(double density)
 	double alpha = foil_AoA(time);
 	double alpha_dot = foil_dAoAdt(time);
 	double h_dot = foil_dZdt(time);
-	std::vector<double> fourier_derivatives = rate_of_change_of_fourier_terms();
+	std::vector<double>& fourier_derivatives = m_fourier_derivatives;
 
 	double term_1, term_2, term_3,
 		term_21, term_22, term_211, term_212;
@@ -708,15 +709,15 @@ std::pair<double, double> mFlow::Ramesh2014::aerofoil_lift_and_drag_coefficients
 	return std::make_pair(cl, cd);
 }
 
-std::vector<double> mFlow::Ramesh2014::rate_of_change_of_fourier_terms()
+void mFlow::Ramesh2014::calc_rate_of_change_of_fourier_terms()
 {	// checked.
 	assert(delta_t != 0);
-	std::vector<double> time_derivatives(m_fourier_terms.size());
+	compute_fourier_terms();
 	for (int i = 0; i < (int) m_fourier_terms.size(); i++) {
-		time_derivatives[i] = (m_fourier_terms[i] - m_previous_fourier_terms[i]) / delta_t;
+		m_fourier_derivatives[i] = (m_fourier_terms[i] - m_previous_fourier_terms[i]) / delta_t;
 	}
-	assert(HBTK::check_finite(time_derivatives));
-	return time_derivatives;
+	assert(HBTK::check_finite(m_fourier_derivatives));
+	return;
 }
 
 double mFlow::Ramesh2014::known_wake_kelvin_condition_effect_term()
@@ -732,7 +733,9 @@ double mFlow::Ramesh2014::known_wake_kelvin_condition_effect_term()
 	};	
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
-	double I_known = quad.integrate(known_integrand);
+	double I_known = quad.integrate(known_integrand); 
+	//double I_known = HBTK::adaptive_simpsons_integrate(
+	//	known_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 	assert(HBTK::check_finite(I_known));
 	return I_known;
 }
@@ -756,6 +759,8 @@ double mFlow::Ramesh2014::last_tev_kelvin_condition_effect_term()
 	quad.linear_remap(0, HBTK::Constants::pi());
 	quad.telles_quadratic_remap(HBTK::Constants::pi());
 	I_unknown = quad.integrate(particle_integrand);
+	//I_unknown = HBTK::adaptive_simpsons_integrate(
+	//	particle_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 
 	assert(HBTK::check_finite(I_unknown));
 	return I_unknown;
@@ -778,8 +783,10 @@ double mFlow::Ramesh2014::new_lev_kelvin_condition_effect_term()
 	// We expect particle_integrand to be singular looking towards the TE.
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
-	quad.telles_quadratic_remap(HBTK::Constants::pi());
+	quad.telles_quadratic_remap(0.0);
 	I_unknown = quad.integrate(particle_integrand);
+	//I_unknown = HBTK::adaptive_simpsons_integrate(
+	//	particle_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 
 	assert(HBTK::check_finite(I_unknown));
 	return I_unknown;
@@ -799,6 +806,8 @@ double mFlow::Ramesh2014::known_wake_A_0_effect_term()
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
 	double I_known = quad.integrate(known_integrand);
+	//double I_known = HBTK::adaptive_simpsons_integrate(
+	//	known_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 	I_known *= -1. / (HBTK::Constants::pi() * free_stream_velocity.magnitude());
 	assert(HBTK::check_finite(I_known));
 	return I_known;
@@ -823,6 +832,8 @@ double mFlow::Ramesh2014::last_tev_A_0_effect_term()
 	quad.linear_remap(0, HBTK::Constants::pi());
 	quad.telles_quadratic_remap(HBTK::Constants::pi());
 	I_unknown = quad.integrate(particle_integrand);
+	//I_unknown = HBTK::adaptive_simpsons_integrate(
+	//	particle_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 	I_unknown *= -1. / (HBTK::Constants::pi() * free_stream_velocity.magnitude());
 
 	assert(HBTK::check_finite(I_unknown));
@@ -846,8 +857,10 @@ double mFlow::Ramesh2014::new_lev_A_0_effect_term()
 	// We expect particle_integrand to be singular looking towards the TE.
 	HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	quad.linear_remap(0, HBTK::Constants::pi());
-	quad.telles_quadratic_remap(HBTK::Constants::pi());
+	quad.telles_quadratic_remap(0.0);
 	I_unknown = quad.integrate(particle_integrand);
+	//I_unknown = HBTK::adaptive_simpsons_integrate(
+	//	particle_integrand, 1e-10, 0.0, HBTK::Constants::pi());
 	I_unknown *= -1. / (HBTK::Constants::pi() * free_stream_velocity.magnitude());
 
 	assert(HBTK::check_finite(I_unknown));
