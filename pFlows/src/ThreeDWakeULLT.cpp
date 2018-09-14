@@ -29,9 +29,10 @@ mFlow::ThreeDWakeULLT::~ThreeDWakeULLT()
 
 void mFlow::ThreeDWakeULLT::advance_one_step()
 {
-	VortexRingLattice wake = generate_planar_wake_object();
-	update_inner_solution_vorticities_for_vortex_filament_curvature(wake);
-	set_inner_solution_downwash(wake);
+	VortexRingLattice tevwake = generate_tev_wake_object();
+	VortexRingLattice levwake = generate_lev_wake_object();
+	update_inner_solution_vorticities_for_vortex_filament_curvature(tevwake);
+	set_inner_solution_downwash(tevwake, levwake);
 #pragma omp parallel for
 	for (int i = 0; i < (int)inner_solutions.size(); i++) {
 		inner_solutions[i].advance_one_step();
@@ -55,14 +56,16 @@ void mFlow::ThreeDWakeULLT::initialise()
 	}
 
 	recalculate_inner_solution_order();
-	m_original_ring_strengths.resize(inner_solutions.size());
+	m_original_tev_ring_strengths.resize(inner_solutions.size());
+	m_original_lev_ring_strengths.resize(inner_solutions.size());
 }
 
 
 void mFlow::ThreeDWakeULLT::wake_to_vtk(std::ostream &out_stream)
 {
-	auto wake = generate_planar_wake_object();
-	wake.save_to_vtk(out_stream);
+	auto twake = generate_tev_wake_object();
+	auto lwake = generate_lev_wake_object();
+	twake.save_to_vtk(out_stream);
 }
 
 double mFlow::ThreeDWakeULLT::compute_lift_coefficient()
@@ -85,9 +88,8 @@ double mFlow::ThreeDWakeULLT::compute_lift_coefficient()
 	return coeff;
 }
 
-mFlow::VortexRingLattice mFlow::ThreeDWakeULLT::generate_planar_wake_object()
+mFlow::VortexRingLattice mFlow::ThreeDWakeULLT::generate_tev_wake_object()
 {
-	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	VortexRingLattice wake(num_vortex_particles_per_inner_solution(),
 		(int)m_inner_solution_ordering.size());
 	if (wake.size() == 0) {
@@ -134,7 +136,7 @@ mFlow::VortexRingLattice mFlow::ThreeDWakeULLT::generate_planar_wake_object()
 				// And use the spine's curvature to correct for the vorticity of the vortex ring.
 				double angle = HBTK::CartesianVector3D(spline3d.derivative(segments[iy].midpoint().y()))
 					.angle(HBTK::CartesianVector3D({ 0, 1, 0 }));
-				wake_vorticity_acc[iy] += m_original_ring_strengths[reindexed_inner_solution(iy)][ix];
+				wake_vorticity_acc[iy] += m_original_tev_ring_strengths[reindexed_inner_solution(iy)][ix];
 				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
 			}
 		}
@@ -142,30 +144,93 @@ mFlow::VortexRingLattice mFlow::ThreeDWakeULLT::generate_planar_wake_object()
 	return wake;
 }
 
-void mFlow::ThreeDWakeULLT::set_inner_solution_downwash(VortexRingLattice & wake)
+mFlow::VortexRingLattice mFlow::ThreeDWakeULLT::generate_lev_wake_object()
 {
-	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
+	VortexRingLattice wake(num_vortex_particles_per_inner_solution(),
+		(int)m_inner_solution_ordering.size());
+	if (wake.size() == 0) {
+		return wake;
+	}
+
+	std::vector<HBTK::CartesianFiniteLine3D> segments = segment_span_by_inner_solution();
+	std::vector<double> segment_end_y_positions = segment_endpoint_y_positions(segments);
+	std::vector<double> inner_solution_y_positions = ThreeDWakeULLT::inner_solution_y_positions();
+
+	// Lifting line geometry:
+	apply_lifting_line_geometry(wake, segment_end_y_positions);
+	apply_lifting_line_zero_vorticity(wake);
+
+	std::vector<double> wake_vorticity_acc(inner_solution_y_positions.size());
+	for (int iy = 0; iy < (int)m_inner_solution_ordering.size(); iy++) {
+		wake_vorticity_acc[iy] = 0.0;
+	}
+	// Wake geometry and vorticity:
+	int num_wake_points = num_vortex_particles_per_inner_solution();
+	std::vector<double> vortex_x_positions(inner_solution_y_positions.size());
+	std::vector<double> vortex_z_positions(inner_solution_y_positions.size());
+	for (int ix = num_wake_points - 1; ix >= 0; ix--) {
+		for (int iy = 0; iy < (int)m_inner_solution_ordering.size(); iy++) {
+			vortex_x_positions[iy] = inner_solutions[reindexed_inner_solution(iy)].m_le_vortex_particles[ix].position.x()
+				// - inner_solutions[reindexed_inner_solution(iy)].foil_coordinate(1.).x();
+				- wing_projection.leading_edge_X(origin(iy).y());
+			vortex_z_positions[iy] = inner_solutions[reindexed_inner_solution(iy)].m_le_vortex_particles[ix].position.y()
+				- inner_solutions[reindexed_inner_solution(iy)].foil_coordinate(1.).y();
+			// - wing_projection.trailing_edge_X(origin(iy).y());
+		}
+		// We use cubic spline interpolation. Edges might be dodgy - perhaps constrain
+		// to convected position (Nope: otherwise vortex filament is unlikely to pass through vortex...)
+		HBTK::CubicSpline1D line_spline_x(inner_solution_y_positions, vortex_x_positions);
+		HBTK::CubicSpline1D line_spline_y(inner_solution_y_positions, inner_solution_y_positions);
+		HBTK::CubicSpline1D line_spline_z(inner_solution_y_positions, vortex_z_positions);
+		HBTK::CubicSplineND<3> spline3d({ line_spline_x, line_spline_y, line_spline_z });
+		for (int iy = 0; iy < (int)segment_end_y_positions.size(); iy++) {
+			wake.vertex(num_wake_points - ix, iy,
+				HBTK::CartesianPoint3D(spline3d(segment_end_y_positions[iy])));
+		}
+		if (ix > 0) {	// Fewer ring strength values to set than vertices.
+			for (int iy = 0; iy < (int)inner_solution_y_positions.size(); iy++) {
+				// And use the spine's curvature to correct for the vorticity of the vortex ring.
+				double angle = HBTK::CartesianVector3D(spline3d.derivative(segments[iy].midpoint().y()))
+					.angle(HBTK::CartesianVector3D({ 0, 1, 0 }));
+				wake_vorticity_acc[iy] += m_original_lev_ring_strengths[reindexed_inner_solution(iy)][ix];
+				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
+			}
+		}
+	}
+	return wake;
+}
+
+void mFlow::ThreeDWakeULLT::set_inner_solution_downwash(VortexRingLattice & tev_wake, VortexRingLattice & lev_wake)
+{
 	std::vector<HBTK::CartesianPoint3D> coordinates;
 	for (auto & plane : inner_solution_planes) {
 		coordinates.push_back(plane.origin());
 	}
-	int wake_depth = wake.extent()[0];
-	int wake_width = wake.extent()[1];
+	int wake_depth = tev_wake.extent()[0];
+	int wake_width = tev_wake.extent()[1];
 	for (int i = 0; i < (int)inner_solutions.size(); i++) {
 		double trailing_edge_x = wing_projection.trailing_edge_X(inner_solution_planes[i].origin().y());
 		HBTK::CartesianVector3D downwash({ 0, 0, 0 });
-		if (wake.size() > 0) {
-			downwash += wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
+		if (tev_wake.size() > 0) {
+			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
+				0, wake_depth, 0, wake_width);
+			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
 				0, wake_depth, 0, wake_width);
 			if (!quasi_steady) {
-				downwash += wake.patch_y_filament_induced_velocity_inclusive(coordinates[i],
+				downwash += tev_wake.patch_y_filament_induced_velocity_inclusive(coordinates[i],
+					1, wake_depth, 0, wake_width);
+				downwash += lev_wake.patch_y_filament_induced_velocity_inclusive(coordinates[i],
 					1, wake_depth, 0, wake_width);
 				// Now remove the W_wi as if were of infinite span (avoid W_wi in inner AND outer solution)
 				for (int j = 0; j < (int)inner_solutions[i].m_te_vortex_particles.size(); j++) {
-					auto & particle = inner_solutions[i].m_te_vortex_particles[j];
-					HBTK::CartesianVector2D diff = particle.position - inner_solutions[i].foil_coordinate(1);
-					downwash.x() += particle.vorticity * HBTK::PointVortex::unity_u_vel(0.0, 0.0, diff.x(), diff.y());
-					downwash.z() += particle.vorticity * HBTK::PointVortex::unity_v_vel(0.0, 0.0, diff.x(), diff.y());
+					auto & tev_particle = inner_solutions[i].m_te_vortex_particles[j];
+					HBTK::CartesianVector2D diff = tev_particle.position - inner_solutions[i].foil_coordinate(1);
+					downwash.x() += tev_particle.vorticity * HBTK::PointVortex::unity_u_vel(0.0, 0.0, diff.x(), diff.y());
+					downwash.z() += tev_particle.vorticity * HBTK::PointVortex::unity_v_vel(0.0, 0.0, diff.x(), diff.y());
+					auto & lev_particle = inner_solutions[i].m_le_vortex_particles[j];
+					diff = tev_particle.position - inner_solutions[i].foil_coordinate(-1);
+					downwash.x() += lev_particle.vorticity * HBTK::PointVortex::unity_u_vel(0.0, 0.0, diff.x(), diff.y());
+					downwash.z() += lev_particle.vorticity * HBTK::PointVortex::unity_v_vel(0.0, 0.0, diff.x(), diff.y());
 				}
 			}
 		}
@@ -237,6 +302,14 @@ void mFlow::ThreeDWakeULLT::apply_lifting_line_geometry(VortexRingLattice & latt
 			HBTK::CartesianPoint3D({ 0.0, y_positions[i], 0.0 })
 		);
 	}
+}
+
+void mFlow::ThreeDWakeULLT::apply_lifting_line_zero_vorticity(VortexRingLattice & lattice)
+{
+	for (int iy = 0; iy < (int)m_inner_solution_ordering.size(); iy++) {
+		lattice.ring_strength(0, iy, 0.0);
+	}
+	return;
 }
 
 void mFlow::ThreeDWakeULLT::recalculate_inner_solution_order()
@@ -312,8 +385,12 @@ bool mFlow::ThreeDWakeULLT::correct_ordering_of_inner_solution_planes()
 void mFlow::ThreeDWakeULLT::add_new_ring_to_ring_strengths(void)
 {
 	for (int i = 0; i < (int)inner_solutions.size(); i++) {
-		m_original_ring_strengths[i].push_back(
+		m_original_tev_ring_strengths[i].push_back(
 			inner_solutions[i].m_te_vortex_particles.most_recently_added().vorticity);
+	}
+	for (int i = 0; i < (int)inner_solutions.size(); i++) {
+		m_original_lev_ring_strengths[i].push_back(
+			inner_solutions[i].m_le_vortex_particles.most_recently_added().vorticity);
 	}
 	return;
 }
@@ -327,11 +404,11 @@ void mFlow::ThreeDWakeULLT::update_inner_solution_vorticities_for_vortex_filamen
 			HBTK::CartesianVector3D tangent = wake.edge_y(ix + 1, y_idx).vector();
 			if (!vortex_ring_warping_correction) {
 				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-					m_original_ring_strengths[i][ix];
+					m_original_tev_ring_strengths[i][ix];
 			}
 			else {
 				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-					m_original_ring_strengths[i][ix] * std::abs(tangent.y()) / tangent.magnitude();
+					m_original_lev_ring_strengths[i][ix] * std::abs(tangent.y()) / tangent.magnitude();
 			}
 		}
 	}

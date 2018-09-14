@@ -66,6 +66,9 @@ int main(int argc, char* argv[]) {
 	inner_sol.foil_dZdt = [&](double t)->double { return heave_profile->dfdx(t); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
+	inner_sol.lev_shedding = true;
+	inner_sol.critical_leading_edge_suction = 0.18;
+	inner_sol.shed_zero_strength_levs = true;
 
 	int num_inner = 8;
 	std::vector<double> inner_y_positions = HBTK::semicircspace(wing.semispan(), 0, num_inner);

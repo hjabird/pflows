@@ -50,17 +50,19 @@ namespace mFlow {
 	private:
 		// Wake:
 		// Wing is on the x (idx0) = 0 line.
-		VortexRingLattice generate_planar_wake_object();
+		VortexRingLattice generate_tev_wake_object();
+		VortexRingLattice generate_lev_wake_object();
 
 		// Compute the downwash on each inner solution due to the wake and 
 		// set the inner solution downwash variable to reflect this.
-		void set_inner_solution_downwash(VortexRingLattice & wake);
+		void set_inner_solution_downwash(VortexRingLattice & tev_wake, VortexRingLattice & lev_wake);
 
 		// Get the number of vortex particles in the inner solution.
 		int num_vortex_particles_per_inner_solution();
 
 		// The vortex ring strengths 
-		std::vector<std::vector<double>> m_original_ring_strengths;
+		std::vector<std::vector<double>> m_original_tev_ring_strengths;
+		std::vector<std::vector<double>> m_original_lev_ring_strengths;
 
 		// Correct for vortex filament curvature.
 		void add_new_ring_to_ring_strengths();
@@ -73,7 +75,8 @@ namespace mFlow {
 		std::vector<double> segment_endpoint_y_positions(const std::vector<HBTK::CartesianFiniteLine3D> & segments);
 		std::vector<double> inner_solution_y_positions();
 		void apply_lifting_line_vorticity(VortexRingLattice & lattice);
-		void apply_lifting_line_geometry(VortexRingLattice & lattice, const std::vector<double> & y_positions);
+		void apply_lifting_line_geometry(VortexRingLattice & lattice, const std::vector<double> & y_positions); 
+		void apply_lifting_line_zero_vorticity(VortexRingLattice & lattice);
 
 		// The y_ordering of the inner solutions. The vector contains the index of an inner solution.
 		// if the index is more than the number of solutions it is idx - num(inner_solutions) index
