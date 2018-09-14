@@ -88,8 +88,10 @@ namespace mFlow {
 		// by foil_coordinate(eta)
 		HBTK::CartesianVector2D foil_velocity(double eta);
 
-		// Shed leading edge vortices
+		// Shed leading edge vortices - default false
 		bool lev_shedding;
+		// Shed leading edge vortices of zero strength too - default false
+		bool shed_zero_strength_levs;
 		// The parameter that governs the onset of shedding.
 		double critical_leading_edge_suction;
 

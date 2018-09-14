@@ -55,6 +55,7 @@ int main()
 	sim.number_of_fourier_terms = 8;
 	sim.wake_self_convection = true;
 	sim.lev_shedding = true;
+	sim.shed_zero_strength_levs = true;
 	sim.critical_leading_edge_suction = 0.08;
 	try {
 		sim.initialise();
@@ -78,7 +79,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	const int n_steps = 600;
+	const int n_steps = 2000;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
@@ -99,7 +100,7 @@ int main()
 		step_data[10].emplace_back(fourier_coeff[2]);
 
 		// Particles
-		if (i % 100 == 0) {
+		if (i % 25 == 0) {
 			std::string te_particle_name = "output/te_particle_step_" + std::to_string(i) + ".vtu";
 			std::ofstream te_particles_file(te_particle_name, std::ios::binary);
 			std::string le_particle_name = "output/le_particle_step_" + std::to_string(i) + ".vtu";
@@ -134,7 +135,7 @@ int main()
 	csv_writer.precision = 6;
 	csv_writer.string_limiter = "";
 	try {
-		csv_writer.write("output/step_data.csv", step_data);
+		;// csv_writer.write("output/step_data.csv", step_data);
 	}
 	catch (std::exception& e) {
 		std::cout << e.what() << "\n";
