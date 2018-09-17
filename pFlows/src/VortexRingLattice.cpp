@@ -1,5 +1,24 @@
 #include "VortexRingLattice.h"
+/*////////////////////////////////////////////////////////////////////////////
+VortexRingLattice.cpp
 
+A singular vortex lattice representation.
+
+Copyright 2017-2018 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <cassert>
 #include <cmath>
@@ -169,10 +188,8 @@ int mFlow::VortexRingLattice::size() const
 	return m_extent_x * m_extent_y;
 }
 
-void mFlow::VortexRingLattice::save_to_vtk(std::ostream & out_stream)
+HBTK::Vtk::VtkUnstructuredDataset mFlow::VortexRingLattice::to_vtk_data()
 {
-	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
-	HBTK::Vtk::VtkWriter writer;
 	HBTK::Vtk::VtkUnstructuredDataset data;
 	int point_count = 0;
 	for (int ix = 0; ix < m_extent_x; ix++) {
@@ -195,11 +212,7 @@ void mFlow::VortexRingLattice::save_to_vtk(std::ostream & out_stream)
 			data.scalar_cell_data["Vorticity"].push_back(edge_y_vorticity(ix, iy));
 		}
 	}
-	writer.appended = false;
-	writer.open_file(out_stream, HBTK::Vtk::VtkWriter::UnstructuredGrid);
-	writer.write_piece(out_stream, data);
-	writer.close_file(out_stream);
-	return;
+	return data;
 }
 
 HBTK::CartesianVector3D mFlow::VortexRingLattice::filament_induced_velocity(

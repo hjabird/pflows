@@ -1,5 +1,28 @@
-// Ramesh2014.cpp : Defines the entry point for the console application.
-//
+/*////////////////////////////////////////////////////////////////////////////
+Ramesh2014_demo.cpp
+
+An implementation of the large amplitude unsteady thin aerofoil theory
+(Ramesh 2013, "An unsteady airfoil theory applied to pitching motions
+validated against experiments and computation") with leading
+edge discrete vorted shedding extension (Ramesh 2014, "Discrete-vortex
+method with novel shedding criterion for unsteady aerofoil flows with 
+intermittent leading-edge vortex shedding").
+
+Copyright 2017-2018 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
 #include <fstream>
@@ -19,7 +42,7 @@
 #include <HBTK/VtkWriter.h>
 
 #include "Ramesh2014.h"
-#include "CanonicalFuntions.h"
+#include "CanonicalFunctions.h"
 
 int main()
 {
@@ -114,8 +137,16 @@ int main()
 				HBTK::CartesianPoint3D({ 1,0,0 }),
 				HBTK::CartesianPoint3D({ 0,0,1 })
 			);
-			sim.m_te_vortex_particles.save_to_vtk(te_particles_file, plane);
-			sim.m_le_vortex_particles.save_to_vtk(le_particles_file, plane);
+			HBTK::Vtk::VtkWriter writer;
+			writer.appended = false;
+			writer.open_file(te_particles_file, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
+			HBTK::Vtk::VtkUnstructuredDataset te_piece = sim.m_te_vortex_particles.to_vtk_data(plane);
+			writer.write_piece(te_particles_file, te_piece);
+			writer.close_file(te_particles_file);
+			writer.open_file(le_particles_file, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
+			sim.m_le_vortex_particles.to_vtk_data(plane);			
+			writer.write_piece(le_particles_file, te_piece);
+			writer.close_file(le_particles_file);
 			auto positions = HBTK::linspace(-1, 1, 30);
 			for (int i = 0; i < 30; i++) {
 				HBTK::CartesianPoint2D pnt = sim.foil_coordinate(positions[i]);
@@ -124,8 +155,6 @@ int main()
 			for (int i = 0; i < (int)data_foil.mesh.points.size() - 1; i++) {
 				data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
 			}
-			HBTK::Vtk::VtkWriter writer;
-			writer.appended = false;
 			writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
 			writer.write_piece(foil_file, data_foil);
 			writer.close_file(foil_file);

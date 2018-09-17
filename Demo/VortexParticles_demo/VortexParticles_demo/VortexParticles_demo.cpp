@@ -1,3 +1,23 @@
+/*////////////////////////////////////////////////////////////////////////////
+VortexParticles_demo.cpp
+
+A demostration of the vortex particles object.
+
+Copyright 2017 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
 #include <iostream>
@@ -53,7 +73,7 @@ int main(int argc, char* argv[]) {
 		c.normalise();
 		c *= dtheta * r * vorticity;
 		p.vorticity = c;
-		p.size = dtheta * r;
+		p.radius = dtheta * r;
 		particles.particles.push_back(p);
 	}
 	for (int i = 0; i < n_per_ring; ++i) {
@@ -69,7 +89,7 @@ int main(int argc, char* argv[]) {
 		c.normalise();
 		c *= dtheta * r * vorticity;
 		p.vorticity = c;
-		p.size = dtheta * r;
+		p.radius = dtheta * r;
 		particles.particles.push_back(p);
 	}
 

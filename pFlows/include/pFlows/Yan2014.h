@@ -1,6 +1,6 @@
 #pragma once
 /*////////////////////////////////////////////////////////////////////////////
-Sclavounos1987.cpp
+Yan2014.h
 
 Method from the paper "Geometrically-exact unsteady model for airfoils 
 undergoing large amplitude maneuvers" Aerospace Science and Technology

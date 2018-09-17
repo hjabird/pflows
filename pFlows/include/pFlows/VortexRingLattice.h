@@ -1,4 +1,24 @@
 #pragma once
+/*////////////////////////////////////////////////////////////////////////////
+VortexRingLattice.cpp
+
+A singular vortex lattice representation.
+
+Copyright 2017-2018 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <string>
 
@@ -6,6 +26,7 @@
 #include <HBTK/CartesianPoint.h>
 #include <HBTK/CartesianRectilinearPanel.h>
 #include <HBTK/StructuredValueBlockND.h>
+#include <HBTK/VtkUnstructuredDataset.h>
 
 namespace mFlow {
 	class VortexRingLattice {
@@ -45,7 +66,7 @@ namespace mFlow {
 		std::array<int, 2> extent() const;
 		int size() const;
 
-		void save_to_vtk(std::ostream & out_stream);
+		HBTK::Vtk::VtkUnstructuredDataset to_vtk_data();
 
 	private:
 		int m_extent_x;

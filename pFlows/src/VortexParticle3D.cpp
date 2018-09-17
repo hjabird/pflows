@@ -13,7 +13,7 @@ mFlow::VortexParticle3D::VortexParticle3D(
 	const double size)
 	:	coord(coordinate),
 	vorticity(vorticity),
-	size(size)
+	radius(size)
 {
 	assert(HBTK::check_finite(coordinate));
 	assert(HBTK::check_finite(vorticity));
@@ -28,11 +28,11 @@ HBTK::CartesianVector3D mFlow::VortexParticle3D::induced_velocity(
 	HBTK::CartesianVector3D vel({ 0,0,0 });
 	if (measurement_point != coord) {
 		double term1 = 1. / (4. * HBTK::Constants::pi());
-		HBTK::CartesianVector3D radius = coord - measurement_point;
-		double term2d = pow(abs(radius), 3);
-		double rho = size / abs(radius);
+		HBTK::CartesianVector3D rad = coord - measurement_point;
+		double term2d = pow(abs(rad), 3);
+		double rho = radius / abs(rad);
 		double g = winckelmans_vortex::g_function(rho);
-		HBTK::CartesianVector3D term2n = g * radius.cross(vorticity);
+		HBTK::CartesianVector3D term2n = g * rad.cross(vorticity);
 		HBTK::CartesianVector3D term2 = term2n / term2d;
 		vel = term1 * term2;
 	}
@@ -47,8 +47,8 @@ HBTK::CartesianVector3D mFlow::VortexParticle3D::induced_rate_of_change_of_vorti
 
 	if (&other_particle != this) {
 		HBTK::CartesianVector3D r = coord - other_particle.coord;
-		double sigma_k = other_particle.size;
-		double rho = abs(r) / size;
+		double sigma_k = other_particle.radius;
+		double rho = abs(r) / radius;
 		double g = winckelmans_vortex::g_function(rho);
 		double f = winckelmans_vortex::f_function(rho);
 

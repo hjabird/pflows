@@ -1,4 +1,23 @@
-// Demo for ThreeDWakeULLT
+/*////////////////////////////////////////////////////////////////////////////
+ThreeDWakeULLT_demo.cpp
+
+A demonstration of the ThreeDWakeULLT method.
+
+Copyright 2017 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
 #include <omp.h>
@@ -11,17 +30,17 @@
 #include <HBTK/DoubleTable.h>
 #include <HBTK/Generators.h>
 #include <HBTK/Paths.h>
-#include <HBTK/RuntimeProfiler.h>
+#include <HBTK/VtkUnstructuredDataset.h>
+#include <HBTK/VtkWriter.h>
 
 #include "ThreeDWakeULLT.h"
 #include "Ramesh2014.h"
 #include "WingGenerators.h"
 #include "WingProjectionGeometry.h"
-#include "CanonicalFuntions.h"
+#include "CanonicalFunctions.h"
 
 
 int main(int argc, char* argv[]) {
-	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	std::cout << "ULLT Demo (C) HJA Bird 2018\n";
 #ifdef _OPENMP
 	std::cout << "Compiled with OpenMP (Max threads = " << omp_get_max_threads() << ").\n";
@@ -30,7 +49,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "Current working directory: " << HBTK::Paths::current_working_directory() << "\n";
 	mFlow::WingProjectionGeometry wing;
 	double aspect_ratio = 2.5; //10000
-	mFlow::WingGenerators::rectangular(wing, 0.3, 3);
+	mFlow::WingGenerators::rectangular(wing, 0.6, 3);
 
 	mFlow::ThreeDWakeULLT sim;
 	sim.wing_projection = wing;
@@ -38,7 +57,7 @@ int main(int argc, char* argv[]) {
 	sim.vortex_ring_warping_correction = false;
 	sim.symmetric = true;
 	sim.symmetry_plane = HBTK::CartesianPlane(HBTK::CartesianPoint3D({ 0,0,0 }), HBTK::CartesianVector3D({ 0, 1, 0 }));
-	int write_vtk_every = 500;
+	int write_vtk_every = 10;
 	bool write_inner_solutions = true;
 
 	HBTK::AerofoilGeometry aerofoil;// = HBTK::AerofoilGenerators::sd7003();
@@ -48,12 +67,12 @@ int main(int argc, char* argv[]) {
 	inner_sol.camber_line = [&](double x) { return camber_line((x + 1) / 2); };
 	inner_sol.camber_slope = [&](double x) {return camber_line.derivative((x + 1) / 2); };
 	inner_sol.pitch_location = 1.; 
-	inner_sol.delta_t = 0.00375; // dt* = 0.015
+	inner_sol.delta_t = 0.00375 / 2; // dt* = 0.015
 	inner_sol.free_stream_velocity.as_array() = { 0.4, 0.0 };
 //	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
 //		= std::make_unique<mFlow::EldredgeSmoothRamp>(0.0764 + 1, 2*0.0764 + 1, 3*0.0764 + 1, 4*0.0764 + 1, 11, 10, 0.0764, inner_sol.free_stream_velocity.magnitude());
 	std::unique_ptr<mFlow::CanonicalFunction> heave_profile 
-		= std::make_unique<mFlow::Harmonic>(8.0, 0.025, 0.0);
+		= std::make_unique<mFlow::Harmonic>(8.0, 0.0025 * 8, 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_profile_variable
 		= std::make_unique<mFlow::Harmonic>(10.3, HBTK::Constants::degrees_to_radians(0.), 0.0);
 	std::unique_ptr<mFlow::CanonicalFunction> aoa_const
@@ -66,9 +85,6 @@ int main(int argc, char* argv[]) {
 	inner_sol.foil_dZdt = [&](double t)->double { return heave_profile->dfdx(t); };
 	inner_sol.number_of_fourier_terms = 8;
 	inner_sol.wake_self_convection = true;
-	inner_sol.lev_shedding = true;
-	inner_sol.critical_leading_edge_suction = 0.18;
-	inner_sol.shed_zero_strength_levs = true;
 
 	int num_inner = 8;
 	std::vector<double> inner_y_positions = HBTK::semicircspace(wing.semispan(), 0, num_inner);
@@ -128,11 +144,17 @@ int main(int argc, char* argv[]) {
 						HBTK::CartesianPlane plane = sim.inner_solution_planes[j];
 						plane.origin() = plane.origin() - HBTK::CartesianVector3D({ wing.semichord(plane.origin().y()), 0, 0 });
 						std::ofstream in_vort_ostream(("output/in_vort" + std::to_string(j) + "_" + std::to_string(i) + ".vtu").c_str());
-						sim.inner_solutions[j].m_te_vortex_particles.save_to_vtk(in_vort_ostream, plane);
+						HBTK::Vtk::VtkWriter writer;
+						writer.appended = false;
+						writer.open_file(in_vort_ostream, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
+						auto tev_data = sim.inner_solutions[j].m_te_vortex_particles.to_vtk_data(plane);
+						auto lev_data = sim.inner_solutions[j].m_le_vortex_particles.to_vtk_data(plane);
+						writer.write_piece(in_vort_ostream, tev_data);
+						writer.write_piece(in_vort_ostream, lev_data);
+						writer.close_file(in_vort_ostream);
 					}
 				}
 			}
-			if (i % 100 == 0) HBTK::GlobalRuntimeProfiler::new_timeset_now();
 		}
 	}
 	catch (std::domain_error & e) {

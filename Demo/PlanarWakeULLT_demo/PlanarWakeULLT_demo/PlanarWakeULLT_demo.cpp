@@ -11,17 +11,17 @@
 #include <HBTK/DoubleTable.h>
 #include <HBTK/Generators.h>
 #include <HBTK/Paths.h>
-#include <HBTK/RuntimeProfiler.h>
+#include <HBTK/VtkUnstructuredDataset.h>
+#include <HBTK/VtkWriter.h>
 
 #include "PlanarWakeULLT.h"
 #include "Ramesh2014.h"
 #include "WingGenerators.h"
 #include "WingProjectionGeometry.h"
-#include "CanonicalFuntions.h"
+#include "CanonicalFunctions.h"
 
 
 int main(int argc, char* argv[]) {
-	HBTK::RuntimeProfiler(__FUNCTION__, __LINE__, true);
 	std::cout << "ULLT Demo (C) HJA Bird 2018\n";
 #ifdef _OPENMP
 	std::cout << "Compiled with OpenMP (Max threads = " << omp_get_max_threads() << ").\n";
@@ -113,11 +113,15 @@ int main(int argc, char* argv[]) {
 						HBTK::CartesianPlane plane = sim.inner_solution_planes[j];
 						plane.origin() = plane.origin() - HBTK::CartesianVector3D({ wing.semichord(plane.origin().y()), 0, 0 });
 						std::ofstream is_ostream(("output/in_vort" + std::to_string(j) + "_" + std::to_string(i) + ".vtu").c_str());
-						sim.inner_solutions[j].m_te_vortex_particles.save_to_vtk(is_ostream, plane);
+						HBTK::Vtk::VtkUnstructuredDataset p_data = sim.inner_solutions[j].m_te_vortex_particles.to_vtk_data(plane);
+						HBTK::Vtk::VtkWriter writer;
+						writer.appended = false;
+						writer.open_file(is_ostream, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
+						writer.write_piece(is_ostream, p_data);
+						writer.close_file(is_ostream);
 					}
 				}
 			}
-			if (i % 100 == 0) HBTK::GlobalRuntimeProfiler::new_timeset_now();
 		}
 	}
 	catch (std::domain_error & e) {

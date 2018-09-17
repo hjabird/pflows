@@ -26,6 +26,7 @@ along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <HBTK/CartesianPlane.h>
 #include <HBTK/CartesianPoint.h>
+#include <HBTK/VtkUnstructuredDataset.h>
 
 namespace mFlow {
 	class VortexGroup2D {
@@ -55,7 +56,7 @@ namespace mFlow {
 		void erase(int index);
 
 		// Save to .vtu file
-		void save_to_vtk(std::ostream & ostream, const HBTK::CartesianPlane & plane) const;
+		HBTK::Vtk::VtkUnstructuredDataset to_vtk_data(const HBTK::CartesianPlane & plane) const;
 
 	private:
 		std::vector<Vortex2D> m_vortices;	// 

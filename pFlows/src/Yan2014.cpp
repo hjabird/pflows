@@ -1,4 +1,27 @@
 #include "Yan2014.h"
+/*////////////////////////////////////////////////////////////////////////////
+Yan2014.cpp
+
+Method from the paper "Geometrically-exact unsteady model for airfoils
+undergoing large amplitude maneuvers" Aerospace Science and Technology
+2014.
+https://doi.org/10.1016/j.ast.2014.09.021
+
+Copyright 2017 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
 

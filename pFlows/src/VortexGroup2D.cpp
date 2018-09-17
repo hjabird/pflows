@@ -94,9 +94,8 @@ void mFlow::VortexGroup2D::erase(int index)
 	return;
 }
 
-void mFlow::VortexGroup2D::save_to_vtk(std::ostream & ostream, const HBTK::CartesianPlane & plane) const
+HBTK::Vtk::VtkUnstructuredDataset mFlow::VortexGroup2D::to_vtk_data(const HBTK::CartesianPlane & plane) const
 {
-	HBTK::Vtk::VtkWriter writer;
 	HBTK::Vtk::VtkUnstructuredDataset data;
 	for (int i = 0; i < size(); i++) {
 		auto particle = operator[](i);
@@ -104,11 +103,7 @@ void mFlow::VortexGroup2D::save_to_vtk(std::ostream & ostream, const HBTK::Carte
 		data.mesh.cells.push_back({ 1, std::vector<int>({ i }) });
 		data.scalar_point_data["Vorticity"].push_back(particle.vorticity);
 	}
-	writer.appended = false;
-	writer.open_file(ostream, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
-	writer.write_piece(ostream, data);
-	writer.close_file(ostream);
-	return;
+	return data;
 }
 
 void mFlow::remove_vortices_by_group(std::vector<VortexGroup2D*> groups, const std::vector<std::vector<int>>& indexes_to_remove_by_group)

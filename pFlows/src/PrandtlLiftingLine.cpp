@@ -1,4 +1,24 @@
 #include "PrandtlLiftingLine.h"
+/*////////////////////////////////////////////////////////////////////////////
+PrandtlLiftingLine.cpp
+
+An implementation of the classical Prandtl lifting line theory
+
+Copyright 2017 HJA Bird
+
+mFlow is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+mFlow is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with mFlow.  If not, see <http://www.gnu.org/licenses/>.
+*/////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
 #include <cassert>
@@ -13,8 +33,12 @@ double mFlow::PrandtlLiftingLine::lift_coefficient()
 
 	double k_1 = -1. / (HBTK::Constants::pi());
 	double k_2 = 1. / (4 * HBTK::Constants::pi());
-	auto c_1 = [&](int k, double theta) { return k_1 * sin((2 * k + 1) * theta) / wing.chord(theta_to_y(theta)); };
-	auto c_2 = [&](int k, double theta) { return k_2 * (2 * k + 1) * integral(k, theta); };
+	auto c_1 = [&](int k, double theta) { 
+		return k_1 * sin((2 * k + 1) * theta) / wing.chord(theta_to_y(theta));
+	};
+	auto c_2 = [&](int k, double theta) { 
+		return k_2 * (2 * k + 1) * integral(k, theta); 
+	};
 	std::vector<double> collocation_points = generate_collocation_points();
 
 	Eigen::MatrixXd mat;
@@ -62,18 +86,20 @@ std::vector<double> mFlow::PrandtlLiftingLine::generate_collocation_points()
 	std::vector<double> collocation_points(n_terms);
 	const auto hpi = HBTK::Constants::pi() / 2;
 	for (auto idx = 0; idx < n_terms; idx++) {
-		collocation_points[idx] = theta_to_y((hpi + idx * HBTK::Constants::pi()) / (2 * n_terms));
+		collocation_points[idx] = 
+			theta_to_y((hpi + idx * HBTK::Constants::pi()) / (2 * n_terms));
 	}
 	return collocation_points;
 }
 
 double mFlow::PrandtlLiftingLine::integral(int k, double theta) const
 {
-	// Using the singularity subtraction method and Glaurt integral.
+	// Using the singularity subtraction method and Glauert integral.
 	const double c_denom = cos(theta);
 	const double c_num = cos((2 * k + 1) * theta);
 	auto integrand = [&](double theta_0) {
-		return (cos((2 * k + 1) * theta_0) - c_num) / (c_denom - cos(theta_0));
+		return (cos((2 * k + 1) * theta_0) - c_num) / 
+			(c_denom - cos(theta_0));
 	};
 	auto quad = HBTK::gauss_legendre(20);
 	quad.linear_remap(0, HBTK::Constants::pi());
