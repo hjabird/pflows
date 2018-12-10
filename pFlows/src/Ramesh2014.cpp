@@ -48,6 +48,7 @@ mFlow::Ramesh2014::Ramesh2014()
 	m_shed_lev_at_last_step(false),
 	external_purturbation([](HBTK::CartesianPoint2D p, double t) { return HBTK::CartesianVector2D({ 0,0 }); })
 {
+	std::cout << "FYI, I've fiddled with advance_one_step so it isn't valid for LDVM right now.\n";
 }
 
 mFlow::Ramesh2014::~Ramesh2014()
@@ -111,11 +112,12 @@ void mFlow::Ramesh2014::advance_one_step()
 	convect_particles();
 	time += delta_t;
 	m_downwash_cache.clear();
+	m_previous_fourier_terms = m_fourier_terms; // "Wrong" location for Ramesh2014, better results for 15...
 	shed_new_trailing_edge_particle_with_zero_vorticity();
 	adjust_last_shed_vortex_particle_for_kelvin_condition();
 	calc_rate_of_change_of_fourier_terms();
 	shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
-	m_previous_fourier_terms = m_fourier_terms;
+	//m_previous_fourier_terms = m_fourier_terms;
 	compute_fourier_terms();
 	calculate_velocities();
 	m_downwash_cache.clear();

@@ -66,7 +66,7 @@ int main()
 	ramp_AoA = std::make_unique<mFlow::Harmonic>(6 * 0.393, -0*0.09477, 0);
 	//ramp_AoA = std::make_unique<mFlow::EldredgeSmoothRamp>(1, 3, 4, 6, 11, 0.7854, 1, sim.free_stream_velocity.magnitude());
 	mean_AoA = std::make_unique<mFlow::ConstantValue>(HBTK::Constants::degrees_to_radians(4.));
-	ramp_Z = std::make_unique<mFlow::Harmonic>(3.2, 0.025, 0);
+	ramp_Z = std::make_unique<mFlow::Harmonic>(3.2, 0*0.025, 0);
 	sum = std::make_unique<mFlow::CanonicalFunctionSum>(std::move(ramp_AoA), std::move(mean_AoA));
 	sim.foil_AoA = [&](double t) { return sum->f(t); };// 0.5 * sin(0.1 * 2 * 3.141 * t); };
 	sim.foil_dAoAdt = [&](double t) { return sum->dfdx(t); };// 0.5 * 0.1 * 2 * 3.141*cos(0.1 * 2 * 3.141*t); };
@@ -77,8 +77,8 @@ int main()
 
 	sim.number_of_fourier_terms = 8;
 	sim.wake_self_convection = true;
-	sim.lev_shedding = true;
-	sim.shed_zero_strength_levs = true;
+	sim.lev_shedding = false;
+	sim.shed_zero_strength_levs = false;
 	sim.critical_leading_edge_suction = 0.08;
 	try {
 		sim.initialise();
@@ -102,7 +102,7 @@ int main()
 	step_data.add_column("A1");
 	step_data.add_column("A2");
 
-	const int n_steps = 2000;
+	const int n_steps = 2001;
 	for (int i = 0; i < n_steps; i++) {
 		std::cout << "\rStep " << i + 1 << " of " << n_steps << "        ";
 		sim.advance_one_step();
@@ -144,8 +144,8 @@ int main()
 			writer.write_piece(te_particles_file, te_piece);
 			writer.close_file(te_particles_file);
 			writer.open_file(le_particles_file, HBTK::Vtk::VtkWriter::vtk_file_type::UnstructuredGrid);
-			sim.m_le_vortex_particles.to_vtk_data(plane);			
-			writer.write_piece(le_particles_file, te_piece);
+			HBTK::Vtk::VtkUnstructuredDataset le_piece = sim.m_le_vortex_particles.to_vtk_data(plane);
+			writer.write_piece(le_particles_file, le_piece);
 			writer.close_file(le_particles_file);
 			auto positions = HBTK::linspace(-1, 1, 30);
 			for (int i = 0; i < 30; i++) {
@@ -153,7 +153,7 @@ int main()
 				data_foil.mesh.points.push_back(plane(pnt));
 			}
 			for (int i = 0; i < (int)data_foil.mesh.points.size() - 1; i++) {
-				data_foil.mesh.cells.push_back({ 3, std::vector<int>({i, i + 1}) });
+				data_foil.mesh.cells.push_back({ HBTK::Vtk::VTK_LINE, std::vector<int>({i, i + 1}) });
 			}
 			writer.open_file(foil_file, HBTK::Vtk::VtkWriter::UnstructuredGrid);
 			writer.write_piece(foil_file, data_foil);
@@ -164,7 +164,7 @@ int main()
 	csv_writer.precision = 6;
 	csv_writer.string_limiter = "";
 	try {
-		;// csv_writer.write("output/step_data.csv", step_data);
+		csv_writer.write("output/step_data.csv", step_data);
 	}
 	catch (std::exception& e) {
 		std::cout << e.what() << "\n";

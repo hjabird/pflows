@@ -203,7 +203,7 @@ void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
 			HBTK::CartesianFiniteLine2D edge = edge_x(ix, iy);
 			data.mesh.points.push_back(plane(edge.start()));
 			data.mesh.points.push_back(plane(edge.end()));
-			data.mesh.cells.push_back({ 3, {point_count, point_count + 1} });
+			data.mesh.cells.push_back({ HBTK::Vtk::VTK_LINE, {point_count, point_count + 1} });
 			point_count += 2;
 			data.scalar_cell_data["Vorticity"].push_back(edge_x_vorticity(ix, iy));
 		}
@@ -213,7 +213,7 @@ void mFlow::PlanarVortexRingLattice::save_to_vtk(std::ostream & out_stream)
 			HBTK::CartesianFiniteLine2D edge = edge_y(ix, iy);
 			data.mesh.points.push_back(plane(edge.start()));
 			data.mesh.points.push_back(plane(edge.end()));
-			data.mesh.cells.push_back({ 3,{ point_count, point_count + 1 } });
+			data.mesh.cells.push_back({ HBTK::Vtk::VTK_LINE,{ point_count, point_count + 1 } });
 			point_count += 2;
 			data.scalar_cell_data["Vorticity"].push_back(edge_y_vorticity(ix, iy));
 		}

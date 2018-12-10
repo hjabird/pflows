@@ -197,7 +197,7 @@ HBTK::Vtk::VtkUnstructuredDataset mFlow::VortexRingLattice::to_vtk_data()
 			HBTK::CartesianFiniteLine3D edge = edge_x(ix, iy);
 			data.mesh.points.push_back(edge.start());
 			data.mesh.points.push_back(edge.end());
-			data.mesh.cells.push_back({ 3,{ point_count, point_count + 1 } });
+			data.mesh.cells.push_back({ HBTK::Vtk::VTK_LINE,{ point_count, point_count + 1 } });
 			point_count += 2;
 			data.scalar_cell_data["Vorticity"].push_back(edge_x_vorticity(ix, iy));
 		}
@@ -207,7 +207,7 @@ HBTK::Vtk::VtkUnstructuredDataset mFlow::VortexRingLattice::to_vtk_data()
 			HBTK::CartesianFiniteLine3D edge = edge_y(ix, iy);
 			data.mesh.points.push_back(edge.start());
 			data.mesh.points.push_back(edge.end());
-			data.mesh.cells.push_back({ 3,{ point_count, point_count + 1 } });
+			data.mesh.cells.push_back({ HBTK::Vtk::VTK_LINE,{ point_count, point_count + 1 } });
 			point_count += 2;
 			data.scalar_cell_data["Vorticity"].push_back(edge_y_vorticity(ix, iy));
 		}

@@ -64,7 +64,7 @@ void mFlow::VortexParticle3DCollector::add_to_vtk(HBTK::Vtk::VtkUnstructuredData
 
 	for (int i = 0; i < (int)particles.size(); i++) {
 		mesh.points.push_back(particles[i].coord);
-		mesh.cells.push_back({ 1, std::vector<int>({ i }) });
+		mesh.cells.push_back({ HBTK::Vtk::VTK_VERTEX, std::vector<int>({ i }) });
 		data.vector_cell_data["vorticity"].push_back(particles[i].vorticity);
 	}
 	return;

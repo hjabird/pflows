@@ -244,10 +244,6 @@ void mFlow::LevSheddingULLT::set_inner_solution_downwash(VortexRingLattice & tev
 		if (tev_wake.size() > 0) {
 			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
 				0, wake_depth, 0, wake_width);
-			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
-				0, wake_depth, 0, wake_width);
-			downwash += lev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
-				0, wake_depth, 0, wake_width);
 			downwash += lev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
 				0, wake_depth, 0, wake_width);
 			if (!quasi_steady) {

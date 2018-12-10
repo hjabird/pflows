@@ -100,7 +100,7 @@ HBTK::Vtk::VtkUnstructuredDataset mFlow::VortexGroup2D::to_vtk_data(const HBTK::
 	for (int i = 0; i < size(); i++) {
 		auto particle = operator[](i);
 		data.mesh.points.push_back(plane(particle.position));
-		data.mesh.cells.push_back({ 1, std::vector<int>({ i }) });
+		data.mesh.cells.push_back({ HBTK::Vtk::VTK_VERTEX, std::vector<int>({ i }) });
 		data.scalar_point_data["Vorticity"].push_back(particle.vorticity);
 	}
 	return data;

@@ -182,8 +182,6 @@ void mFlow::ThreeDWakeULLT::set_inner_solution_downwash(VortexRingLattice & tev_
 		if (tev_wake.size() > 0) {
 			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
 				0, wake_depth, 0, wake_width);
-			downwash += tev_wake.patch_x_filament_induced_velocity_inclusive(coordinates[i],
-				0, wake_depth, 0, wake_width);
 			if (!quasi_steady) {
 				downwash += tev_wake.patch_y_filament_induced_velocity_inclusive(coordinates[i],
 					1, wake_depth, 0, wake_width);
