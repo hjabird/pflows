@@ -163,6 +163,7 @@ namespace mFlow {
 		// For a wake, compute the fourier terms describing the aerofoils
 		// vorticity distribution.
 		void compute_fourier_terms();
+		void compute_fourier_terms(int minterm, int maxterm);
 
 
 		// For local pos in [-1,1] with -1->LE, 1->TE, evaluate the foil's vorticity

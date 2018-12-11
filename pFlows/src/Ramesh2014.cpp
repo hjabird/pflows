@@ -112,13 +112,14 @@ void mFlow::Ramesh2014::advance_one_step()
 	convect_particles();
 	time += delta_t;
 	m_downwash_cache.clear();
-	m_previous_fourier_terms = m_fourier_terms; // "Wrong" location for Ramesh2014, better results for 15...
+	// m_previous_fourier_terms = m_fourier_terms; // "Wrong" location for Ramesh2014, better results for 15...
 	shed_new_trailing_edge_particle_with_zero_vorticity();
 	adjust_last_shed_vortex_particle_for_kelvin_condition();
+	compute_fourier_terms();
 	calc_rate_of_change_of_fourier_terms();
 	shed_new_leading_edge_particle_if_required_and_adjust_vorticities();
-	//m_previous_fourier_terms = m_fourier_terms;
 	compute_fourier_terms();
+	m_previous_fourier_terms = m_fourier_terms;
 	calculate_velocities();
 	m_downwash_cache.clear();
 }
@@ -494,6 +495,7 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vo
 
 	if (std::abs(A_0) > critical_leading_edge_suction) {
 		// Note that the last TE particle isn't actually removed from simulation.
+		double lesp_sign = A_0 > 0 ? 1. : -1.;
 		m_wake_vorticity -= m_te_vortex_particles.most_recently_added().vorticity;
 		remove_last_shed_te_vortex_from_downwash_cache();
 		shed_new_leading_edge_particle_with_zero_vorticity();
@@ -507,10 +509,10 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_if_required_and_adjust_vo
 		double det = J_3 * (I_2 + 1.) - J_2 * (I_3 + 1.);
 		m_te_vortex_particles.most_recently_added().vorticity =
 			(1. / det) * (-J_3 * (I_1 + total_shed_vorticity())
-				+ (I_3 + 1) * (J_1 - critical_leading_edge_suction));
+				+ (I_3 + 1) * (J_1 - critical_leading_edge_suction * lesp_sign));
 		m_le_vortex_particles.most_recently_added().vorticity =
 			(1. / det) * (J_2 * (I_1 + total_shed_vorticity())
-				- (I_2 + 1) * (J_1 - critical_leading_edge_suction));
+				- (I_2 + 1) * (J_1 - critical_leading_edge_suction * lesp_sign));
 		add_last_shed_le_vortex_to_downwash_cache();
 		add_last_shed_te_vortex_to_downwash_cache();
 		m_wake_vorticity += m_te_vortex_particles.most_recently_added().vorticity;
@@ -554,17 +556,25 @@ void mFlow::Ramesh2014::shed_new_leading_edge_particle_with_zero_vorticity()
 void mFlow::Ramesh2014::compute_fourier_terms()
 {	// Eq.2.3/2.4 Free stream velocity bit correctness?.
 	assert(number_of_fourier_terms > 2);
+	compute_fourier_terms(0, number_of_fourier_terms);
+	return;
+}
+
+void mFlow::Ramesh2014::compute_fourier_terms(int minterm, int maxterm) {
+	assert(minterm >= 0);
+	assert(maxterm > minterm);
+	assert(maxterm < number_of_fourier_terms);
 	// HBTK::StaticQuadrature quad = HBTK::gauss_legendre(50);
 	// quad.linear_remap(0, HBTK::Constants::pi());
-	for (int i = 0; i < number_of_fourier_terms; i++) {
+	for (int i = minterm; i < maxterm; i++) {
 		auto integrand = [&](double theta) {
-			double foil_pos = - cos(theta);
+			double foil_pos = -cos(theta);
 			return cos(i * theta) * induced_velocity_normal_to_foil_surface(foil_pos)
-				/ free_stream_velocity.magnitude(); 
+				/ free_stream_velocity.magnitude();
 		};
 		m_fourier_terms[i] = HBTK::adaptive_simpsons_integrate(integrand, 1e-7, 0.0, HBTK::Constants::pi()) * 2. / HBTK::Constants::pi();
 	}
-	m_fourier_terms[0] *= -0.5;
+	if ((minterm == 0) && (maxterm > 0)) { m_fourier_terms[0] *= -0.5; }
 	if (!HBTK::check_finite(m_fourier_terms)) {
 		throw std::runtime_error("Fourier terms were evaluated "
 			" as infinite! " __FILE__ ": " + std::to_string(__LINE__));
