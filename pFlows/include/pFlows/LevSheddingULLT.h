@@ -7,7 +7,7 @@ with leading edge vortex shedding to inlude goemetric and aerodynamic
 non-linearity within a the lifting-line theory framework. Unsurprisingly,
 this method does not work well.
 
-Copyright 2017 HJA Bird
+Copyright 2017-2018 HJA Bird
 
 mFlow is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -81,14 +81,6 @@ namespace mFlow {
 
 		// Get the number of vortex particles in the inner solution.
 		int num_vortex_particles_per_inner_solution();
-
-		// The vortex ring strengths 
-		std::vector<std::vector<double>> m_original_tev_ring_strengths;
-		std::vector<std::vector<double>> m_original_lev_ring_strengths;
-
-		// Correct for vortex filament curvature.
-		void add_new_ring_to_ring_strengths();
-		void update_inner_solution_vorticities_for_vortex_filament_curvature(VortexRingLattice & wake);
 
 		// Turn the span of the wing into a set of segments, adding in symmetry if needed.
 		std::vector<HBTK::CartesianFiniteLine3D> segment_span_by_inner_solution();

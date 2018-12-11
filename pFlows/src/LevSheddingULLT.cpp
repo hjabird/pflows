@@ -55,13 +55,11 @@ void mFlow::LevSheddingULLT::advance_one_step()
 {
 	VortexRingLattice tevwake = generate_tev_wake_object();
 	VortexRingLattice levwake = generate_lev_wake_object();
-	update_inner_solution_vorticities_for_vortex_filament_curvature(tevwake);
 	set_inner_solution_downwash(tevwake, levwake);
 #pragma omp parallel for
 	for (int i = 0; i < (int)inner_solutions.size(); i++) {
 		inner_solutions[i].advance_one_step();
 	}
-	add_new_ring_to_ring_strengths();
 }
 
 void mFlow::LevSheddingULLT::initialise()
@@ -80,8 +78,6 @@ void mFlow::LevSheddingULLT::initialise()
 	}
 
 	recalculate_inner_solution_order();
-	m_original_tev_ring_strengths.resize(inner_solutions.size());
-	m_original_lev_ring_strengths.resize(inner_solutions.size());
 }
 
 
@@ -163,10 +159,7 @@ mFlow::VortexRingLattice mFlow::LevSheddingULLT::generate_tev_wake_object()
 		}
 		if (ix > 0) {	// Fewer ring strength values to set than vertices.
 			for (int iy = 0; iy < (int)inner_solution_y_positions.size(); iy++) {
-				// And use the spine's curvature to correct for the vorticity of the vortex ring.
-				double angle = HBTK::CartesianVector3D(spline3d.derivative(segments[iy].midpoint().y()))
-					.angle(HBTK::CartesianVector3D({ 0, 1, 0 }));
-				wake_vorticity_acc[iy] += m_original_tev_ring_strengths[reindexed_inner_solution(iy)][ix];
+				wake_vorticity_acc[iy] += inner_solutions[reindexed_inner_solution(iy)].m_te_vortex_particles[ix].vorticity;
 				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
 			}
 		}
@@ -219,10 +212,7 @@ mFlow::VortexRingLattice mFlow::LevSheddingULLT::generate_lev_wake_object()
 		}
 		if (ix > 0) {	// Fewer ring strength values to set than vertices.
 			for (int iy = 0; iy < (int)inner_solution_y_positions.size(); iy++) {
-				// And use the spine's curvature to correct for the vorticity of the vortex ring.
-				double angle = HBTK::CartesianVector3D(spline3d.derivative(segments[iy].midpoint().y()))
-					.angle(HBTK::CartesianVector3D({ 0, 1, 0 }));
-				wake_vorticity_acc[iy] += m_original_lev_ring_strengths[reindexed_inner_solution(iy)][ix];
+				wake_vorticity_acc[iy] += inner_solutions[reindexed_inner_solution(iy)].m_le_vortex_particles[ix].vorticity;
 				wake.ring_strength(num_wake_points - ix, iy, wake_vorticity_acc[iy]);
 			}
 		}
@@ -258,7 +248,7 @@ void mFlow::LevSheddingULLT::set_inner_solution_downwash(VortexRingLattice & tev
 					downwash.x() += tev_particle.vorticity * HBTK::PointVortex::unity_u_vel(0.0, 0.0, diff.x(), diff.y());
 					downwash.z() += tev_particle.vorticity * HBTK::PointVortex::unity_v_vel(0.0, 0.0, diff.x(), diff.y());
 					auto & lev_particle = inner_solutions[i].m_le_vortex_particles[j];
-					diff = lev_particle.position - inner_solutions[i].foil_coordinate(1);
+					diff = lev_particle.position - inner_solutions[i].foil_coordinate(-1);
 					downwash.x() += lev_particle.vorticity * HBTK::PointVortex::unity_u_vel(0.0, 0.0, diff.x(), diff.y());
 					downwash.z() += lev_particle.vorticity * HBTK::PointVortex::unity_v_vel(0.0, 0.0, diff.x(), diff.y());
 				}
@@ -410,39 +400,3 @@ bool mFlow::LevSheddingULLT::correct_ordering_of_inner_solution_planes()
 	return good;
 }
 
-
-void mFlow::LevSheddingULLT::add_new_ring_to_ring_strengths(void)
-{
-	for (int i = 0; i < (int)inner_solutions.size(); i++) {
-		m_original_tev_ring_strengths[i].push_back(
-			inner_solutions[i].m_te_vortex_particles.most_recently_added().vorticity);
-	}
-	for (int i = 0; i < (int)inner_solutions.size(); i++) {
-		m_original_lev_ring_strengths[i].push_back(
-			inner_solutions[i].m_le_vortex_particles.most_recently_added().vorticity);
-	}
-	return;
-}
-
-void mFlow::LevSheddingULLT::update_inner_solution_vorticities_for_vortex_filament_curvature(VortexRingLattice & wake)
-{
-	for (int i = 0; i < (int)inner_solutions.size(); i++) {
-		int y_idx = *(std::find(m_inner_solution_ordering.begin(),
-			m_inner_solution_ordering.end(), i));
-		for (int ix = 0; ix < num_vortex_particles_per_inner_solution(); ix++) {
-			HBTK::CartesianVector3D tangent = wake.edge_y(ix + 1, y_idx).vector();
-			if (!vortex_ring_warping_correction) {
-				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-					m_original_tev_ring_strengths[i][ix];
-				inner_solutions[i].m_le_vortex_particles[ix].vorticity =
-					m_original_lev_ring_strengths[i][ix];
-			}
-			else {
-				inner_solutions[i].m_te_vortex_particles[ix].vorticity =
-					m_original_tev_ring_strengths[i][ix] * std::abs(tangent.y()) / tangent.magnitude();
-				inner_solutions[i].m_le_vortex_particles[ix].vorticity =
-					m_original_lev_ring_strengths[i][ix] * std::abs(tangent.y()) / tangent.magnitude();
-			}
-		}
-	}
-}
