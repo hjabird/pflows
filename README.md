@@ -1,3 +1,5 @@
+pflows is no longer in use or under development. Please see LiftingLineTheory.jl for similar content.
+
 # pflows
 Numerical implementations of papers.
 
